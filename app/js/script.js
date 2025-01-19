@@ -63,6 +63,40 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTitle();
     });
 
+    document.addEventListener('keydown', handleKeyPress);
+
+    function handleKeyPress(event) {
+        switch(event.key.toLowerCase()) {
+            case 'j':
+                navigateToPreviousWeek();
+                break;
+            case 'l':
+                navigateToNextWeek();
+                break;
+            case 'k':
+                navigateToCurrentWeek();
+                break;
+        }
+    }
+
+    function navigateToPreviousWeek() {
+        currentWeek--;
+        updateTitle();
+        updateBirthdayList();
+    }
+
+    function navigateToNextWeek() {
+        currentWeek++;
+        updateTitle();
+        updateBirthdayList();
+    }
+
+    function navigateToCurrentWeek() {
+        currentWeek = 0;
+        updateTitle();
+        updateBirthdayList();
+    }
+
     function updateTitle() {
         title.textContent = `Geburtstage ${getCurrentWeekRange()}`;
     }
@@ -152,6 +186,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }).sort((a, b) => {
             const dateA = parseDateDE(a.geburtsdatum);
             const dateB = parseDateDE(b.geburtsdatum);
+            // Erst nach Monat sortieren
+            if (dateA.getMonth() !== dateB.getMonth()) {
+                return dateA.getMonth() - dateB.getMonth();
+            }
+            // Bei gleichem Monat nach Tag sortieren
             return dateA.getDate() - dateB.getDate();
         });
     }
@@ -225,7 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
             birthdayItem.className = 'birthday-item';
 
             birthdayItem.innerHTML = `
-                <img src="images/keinfoto.jpg" alt="${birthday.vorname} ${birthday.nachname}" 
+                <img src="images/keinfoto.png" alt="${birthday.vorname} ${birthday.nachname}" 
                      data-error-reported="false">
                 <p class="name">${birthday.nachname} ${birthday.vorname}</p>
                 <p class="date">${formattedDate}</p>
