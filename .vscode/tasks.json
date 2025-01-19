@@ -1,0 +1,20 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "type": "npm",
+        "script": "start",
+        "problemMatcher": [],
+        "label": "npm: start",
+        "detail": "Start the application"
+      },
+      {
+        "type": "shell",
+        "command": "node /app/js/sync.js",
+        "problemMatcher": [],
+        "label": "Run sync script",
+        "detail": "Execute the sync.js script"
+      }
+    ]
+  }
+  
