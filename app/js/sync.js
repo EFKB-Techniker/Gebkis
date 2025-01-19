@@ -21,8 +21,8 @@ async function syncSharePointFile() {
             .getFileByServerRelativeUrl(process.env.SHAREPOINT_FILE_PATH)
             .getBuffer();
 
-        fs.writeFileSync('/app/data/geburtstagskinder.xlsx', file);
-        console.log('XLSX Sync:', new Date().toISOString());
+        fs.writeFileSync('/app/data/Geburtstagsliste.xls', file);
+        console.log('XLS Sync:', new Date().toISOString());
     } catch (error) {
         console.error('Sync Error:', error);
     }
