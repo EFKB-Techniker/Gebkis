@@ -1,9 +1,9 @@
-const { sp } = require('@pnp/sp');
-const { SPFetchClient } = require('@pnp/nodejs');
-const fs = require('fs');
-const path = require('path');
+require('dotenv').config();
+const { sp } = require("@pnp/sp");
+const { SPFetchClient } = require("@pnp/nodejs");
 
-async function syncSharePointFile() {
+async function syncData() {
+    console.log("SharePoint Sync startet...");
     try {
         sp.setup({
             sp: {
@@ -28,4 +28,4 @@ async function syncSharePointFile() {
     }
 }
 
-syncSharePointFile();
+syncData().catch(console.error);
