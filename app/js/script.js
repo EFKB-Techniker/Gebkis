@@ -196,7 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateBirthdayList() {
-        fetch('data/geburtstagskinder.xlsx')
+        fetch('data/Geburtstagsliste.xls')
             .then(response => {
                 if (!response.ok) {
                     throw new Error('XLSX Datei konnte nicht geladen werden');

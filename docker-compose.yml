@@ -1,8 +1,10 @@
 version: '3'
 services:
-  web:
+  app:
     build: .
+    volumes:
+      - ./app:/app
+    env_file:
+      - .env
     ports:
       - "8089:80"
-    volumes:
-      - ./app:/usr/share/nginx/html

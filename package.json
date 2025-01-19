@@ -1,0 +1,9 @@
+{
+  "name": "geburtstagsliste",
+  "version": "1.0.0",
+  "dependencies": {
+    "@pnp/sp": "^2.11.0",
+    "@pnp/nodejs": "^2.11.0",
+    "express": "^4.17.1"
+  }
+}
