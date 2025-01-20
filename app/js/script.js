@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.appendChild(videoBackground);
 
     let currentWeek = 0;
-    const CURRENT_DATE = new Date('2025-01-18 01:03:45');
+    const CURRENT_DATE = new Date(); // Verwendet das aktuelle Datum
     const CURRENT_USER = 'r0xx5';
 
     // Container für die gesamte App erstellen
@@ -157,14 +157,24 @@ document.addEventListener('DOMContentLoaded', () => {
         return name.replace(/[äöüÄÖÜß]/g, (umlaut) => umlautMap[umlaut]);
     }
 
-    function filterBirthdays(birthdays, weekOffset) {
-        const monday = new Date(CURRENT_DATE);
-        monday.setDate(CURRENT_DATE.getDate() - CURRENT_DATE.getDay() + 1 + (weekOffset * 7));
+    function getMonday(date) {
+        const day = date.getDay();
+        const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Wenn Sonntag, dann -6
+        const monday = new Date(date);
+        monday.setDate(diff);
         monday.setHours(0, 0, 0, 0);
-        
+        return monday;
+    }
+
+    function filterBirthdays(birthdays, weekOffset) {
+        const current = new Date(CURRENT_DATE);
+        const monday = getMonday(current);
+        monday.setDate(monday.getDate() + (weekOffset * 7));
         const sunday = new Date(monday);
-        sunday.setDate(monday.getDate() + 6);
-        sunday.setHours(23, 59, 59, 999);
+        sunday.setDate(sunday.getDate() + 6);
+
+        // Debug-Ausgabe
+        console.log('Filterperiode:', formatDateDE(monday), 'bis', formatDateDE(sunday));
 
         return birthdays.filter(birthday => {
             if (!birthday.vorname || !birthday.nachname || !birthday.geburtsdatum) return false;
@@ -175,31 +185,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 return false;
             }
 
-            const thisYearBirthday = new Date(CURRENT_DATE.getFullYear(), 
-                                            birthDate.getMonth(), 
-                                            birthDate.getDate(), 
-                                            12, 0, 0, 0);
+            // Vergleiche nur Tag und Monat
+            const currentYear = CURRENT_DATE.getFullYear();
+            const years = [currentYear - 1, currentYear, currentYear + 1, currentYear + 2, currentYear + 3];
             
-            const inRange = thisYearBirthday >= monday && thisYearBirthday <= sunday;
-            
-            return inRange;
+            return years.some(year => {
+                const checkDate = new Date(year, birthDate.getMonth(), birthDate.getDate());
+                const isInRange = checkDate >= monday && checkDate <= sunday;
+                
+                // Debug-Ausgabe
+                if (birthday.geburtsdatum === '12.01.1993') {
+                    console.log('Prüfe Jahr:', year, 
+                              'Datum:', formatDateDE(checkDate), 
+                              'In Range:', isInRange);
+                }
+                
+                return isInRange;
+            });
         }).sort((a, b) => {
             const dateA = parseDateDE(a.geburtsdatum);
             const dateB = parseDateDE(b.geburtsdatum);
-            // Erst nach Monat sortieren
-            if (dateA.getMonth() !== dateB.getMonth()) {
-                return dateA.getMonth() - dateB.getMonth();
-            }
-            // Bei gleichem Monat nach Tag sortieren
+            const monthA = dateA.getMonth();
+            const monthB = dateB.getMonth();
+            if (monthA !== monthB) return monthA - monthB;
             return dateA.getDate() - dateB.getDate();
         });
     }
 
     function updateBirthdayList() {
-        fetch('data/geburtstagskinder.xlsx')
+        fetch('data/Geburtstagsliste.xls')
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('XLSX Datei konnte nicht geladen werden');
+                    throw new Error('XLS Datei konnte nicht geladen werden');
                 }
                 return response.arrayBuffer();
             })
@@ -223,7 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }));
 
                 } catch (e) {
-                    console.error('Fehler beim Parsen der XLSX:', e);
+                    console.error('Fehler beim Parsen der XLS:', e);
                     throw e;
                 }
 
@@ -231,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 displayBirthdays(filteredBirthdays);
             })
             .catch(error => {
-                console.error('Fehler beim Laden oder Verarbeiten der XLSX:', error);
+                console.error('Fehler beim Laden oder Verarbeiten der XLS:', error);
                 birthdayList.innerHTML = `
                     <div class="no-birthdays">
                         <p>Fehler beim Laden der Geburtstagsliste</p>
