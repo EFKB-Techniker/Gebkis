@@ -1,0 +1,10 @@
+{
+	"name": "Nginx Dev Container",
+	"dockerComposeFile": "../docker-compose.yml",
+	"service": "nginx",
+	"workspaceFolder": "/usr/share/nginx/html",
+	"extensions": [
+	  "ms-azuretools.vscode-docker"
+	]
+  }
+  
