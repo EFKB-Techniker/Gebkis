@@ -1,4 +1,4 @@
 .env
 .DS_Store
 fetch_data.log
-app/data/*
+Geburtstagsliste.xls
