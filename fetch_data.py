@@ -4,6 +4,7 @@ import requests
 from requests_oauthlib import OAuth2Session
 from oauthlib.oauth2 import BackendApplicationClient
 import logging
+import json
 
 def setup_logger():
     log_dir = '/usr/share/nginx/html/logs'
@@ -100,15 +101,24 @@ def sync_images(access_token):
     headers = {"Authorization": f"Bearer {access_token}"}
     
     try:
-        # Erstelle Zielordner, falls nicht vorhanden
         target_dir = os.getenv('GEBKIS_IMG_DIR')
         os.makedirs(target_dir, exist_ok=True)
         
+        cache_file = os.path.join(target_dir, 'etag_cache.json')
+        try:
+            with open(cache_file, 'r') as f:
+                etag_cache = json.load(f)
+        except FileNotFoundError:
+            etag_cache = {}
+        
+        # Sammle alle SharePoint-Dateien
+        sharepoint_filenames = set()
         next_link = folder_url
         total_files = 0
+        updated_files = 0
+        new_etag_cache = {}
         
         while next_link:
-            # Hole Liste aller Dateien im Ordner
             response = requests.get(next_link, headers=headers)
             if response.status_code != 200:
                 logger.error(f"Fehler beim Abrufen der Bilderliste: {response.status_code}")
@@ -117,28 +127,63 @@ def sync_images(access_token):
             response_data = response.json()
             sharepoint_files = response_data.get('value', [])
             total_files += len(sharepoint_files)
-            logger.info(f"Verarbeite {len(sharepoint_files)} Dateien...")
             
-            # Download jeder Datei in der aktuellen Seite
             for file in sharepoint_files:
                 if file.get('name', '').lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
-                    file_id = file['id']
-                    download_url = f'https://graph.microsoft.com/v1.0/sites/{site_id}/drives/{drive_id}/items/{file_id}/content'
                     file_name = file['name']
+                    sharepoint_filenames.add(file_name)  # Füge Datei zur SharePoint-Liste hinzu
+                    file_id = file['id']
+                    current_etag = file.get('eTag', '')
                     target_path = os.path.join(target_dir, file_name)
                     
-                    img_response = requests.get(download_url, headers=headers)
-                    if img_response.status_code == 200:
-                        with open(target_path, 'wb') as f:
-                            f.write(img_response.content)
-                        logger.info(f"Bild erfolgreich heruntergeladen: {file_name}")
+                    # Speichere neuen eTag
+                    new_etag_cache[file_name] = current_etag
+                    
+                    # Prüfe ob Download notwendig
+                    should_download = (
+                        not os.path.exists(target_path) or  # Datei existiert nicht
+                        file_name not in etag_cache or      # Keine Cache-Information
+                        etag_cache[file_name] != current_etag  # eTag hat sich geändert
+                    )
+                    
+                    if should_download:
+                        download_url = f'https://graph.microsoft.com/v1.0/sites/{site_id}/drives/{drive_id}/items/{file_id}/content'
+                        img_response = requests.get(download_url, headers=headers)
+                        if img_response.status_code == 200:
+                            with open(target_path, 'wb') as f:
+                                f.write(img_response.content)
+                            updated_files += 1
+                            logger.info(f"Bild aktualisiert: {file_name}")
+                        else:
+                            logger.error(f"Fehler beim Download von {file_name}: {img_response.status_code}")
                     else:
-                        logger.error(f"Fehler beim Download von {file_name}: {img_response.status_code}")
+                        logger.debug(f"Bild unverändert, überspringe: {file_name}")
             
-            # Prüfe, ob es weitere Seiten gibt
             next_link = response_data.get('@odata.nextLink', None)
+        
+        # Finde und lösche lokale Dateien, die nicht mehr auf SharePoint existieren
+        local_files = [f for f in os.listdir(target_dir) 
+                      if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif'))]
+        deleted_files = 0
+        
+        for local_file in local_files:
+            if local_file not in sharepoint_filenames:
+                file_path = os.path.join(target_dir, local_file)
+                try:
+                    os.remove(file_path)
+                    if local_file in new_etag_cache:
+                        del new_etag_cache[local_file]
+                    deleted_files += 1
+                    logger.info(f"Gelöschte Datei entfernt: {local_file}")
+                except Exception as e:
+                    logger.error(f"Fehler beim Löschen von {local_file}: {str(e)}")
+        
+        # Speichere aktualisierten etag-Cache
+        with open(cache_file, 'w') as f:
+            json.dump(new_etag_cache, f)
             
-        logger.info(f"Bildsynchronisation abgeschlossen. Insgesamt {total_files} Dateien verarbeitet")
+        logger.info(f"Bildsynchronisation abgeschlossen. Gesamt: {total_files}, "
+                   f"Aktualisiert: {updated_files}, Gelöscht: {deleted_files}")
     except Exception as e:
         logger.error(f"Fehler bei der Bildsynchronisation: {str(e)}")
         raise
