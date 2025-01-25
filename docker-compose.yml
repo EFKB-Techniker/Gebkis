@@ -1,11 +1,15 @@
 version: '3'
 services:
-  nginx:
+  web:
     build: .
     ports:
       - "8089:80"
     volumes:
       - ./app:/usr/share/nginx/html
       - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./.env:/usr/local/bin/.env
+    environment:
+      - PYTHONUNBUFFERED=1
     labels:
       - "com.centurylinklabs.watchtower.enable=false"
+    restart: always

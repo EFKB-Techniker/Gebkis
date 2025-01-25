@@ -159,3 +159,18 @@ body {
         grid-template-columns: 1fr;
     }
 }
+
+.floating-pagination {
+    position: fixed;
+    bottom: 60px;  /* Mehr Abstand von unten */
+    right: 60px;   /* Mehr Abstand von rechts */
+    background: rgba(45, 45, 45, 0.95); /* Etwas dunklerer Hintergrund */
+    color: #ffffff;
+    padding: 15px 30px;  /* Mehr Padding für bessere Lesbarkeit */
+    border-radius: 25px;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: 1.4em;    /* Größere Schrift */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* Schatten für bessere Sichtbarkeit */
+    z-index: 1000;       /* Sicherstellen, dass es über anderen Elementen liegt */
+}
