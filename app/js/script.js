@@ -40,6 +40,13 @@ document.addEventListener('DOMContentLoaded', () => {
     nextWeekBtn.className = 'nav-button';
     nextWeekBtn.innerHTML = '▶';
 
+    // Floating Pagination Text
+    const paginationText = document.createElement('div');
+    paginationText.className = 'floating-pagination';
+
+    // Floating Pagination an body anhängen
+    document.body.appendChild(paginationText);
+
     // Header zusammenbauen
     header.appendChild(prevWeekBtn);
     header.appendChild(title);
@@ -187,11 +194,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateTitle() {
         const filteredBirthdays = filterBirthdays(window.birthdays, currentWeek);
-        if (filteredBirthdays.length > ITEMS_PER_PAGE) {
-            const totalPages = Math.ceil(filteredBirthdays.length / ITEMS_PER_PAGE);
-            title.textContent = `Geburtstage ${getCurrentWeekRange()} (Seite ${currentPage + 1} von ${totalPages})`;
+        const totalPages = Math.ceil(filteredBirthdays.length / ITEMS_PER_PAGE);
+        
+        title.textContent = `Geburtstage vom ${getCurrentWeekRange()}`;
+        
+
+        // Update Floating Pagination
+        if (totalPages > 1) {
+            paginationText.textContent = `Seite ${currentPage + 1} von ${totalPages}`;
+            paginationText.style.display = 'block';
         } else {
-            title.textContent = `Geburtstage ${getCurrentWeekRange()}`;
+            paginationText.style.display = 'none';
         }
     }
 
