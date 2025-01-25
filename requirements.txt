@@ -1,0 +1,6 @@
+requests
+requests_oauthlib
+pandas
+openpyxl
+python-dotenv
+logging
