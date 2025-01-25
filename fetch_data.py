@@ -100,38 +100,45 @@ def sync_images(access_token):
     headers = {"Authorization": f"Bearer {access_token}"}
     
     try:
-        # Hole Liste aller Dateien im Ordner
-        response = requests.get(folder_url, headers=headers)
-        if response.status_code != 200:
-            logger.error(f"Fehler beim Abrufen der Bilderliste: {response.status_code}")
-            return
-            
-        sharepoint_files = response.json().get('value', [])
-        logger.info(f"Anzahl der Bilder auf SharePoint: {len(sharepoint_files)}")
-        
         # Erstelle Zielordner, falls nicht vorhanden
-        target_dir = '/images'
+        target_dir = os.getenv('GEBKIS_IMG_DIR')
         os.makedirs(target_dir, exist_ok=True)
         
-        # Download jeder Datei
-        for file in sharepoint_files:
-            if file.get('name', '').lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
-                # Hole Download-URL für jede Datei
-                file_id = file['id']
-                download_url = f'https://graph.microsoft.com/v1.0/sites/{site_id}/drives/{drive_id}/items/{file_id}/content'
-                file_name = file['name']
-                target_path = os.path.join(target_dir, file_name)
+        next_link = folder_url
+        total_files = 0
+        
+        while next_link:
+            # Hole Liste aller Dateien im Ordner
+            response = requests.get(next_link, headers=headers)
+            if response.status_code != 200:
+                logger.error(f"Fehler beim Abrufen der Bilderliste: {response.status_code}")
+                return
                 
-                # Lade Datei herunter
-                img_response = requests.get(download_url, headers=headers)
-                if img_response.status_code == 200:
-                    with open(target_path, 'wb') as f:
-                        f.write(img_response.content)
-                    logger.info(f"Bild erfolgreich heruntergeladen: {file_name}")
-                else:
-                    logger.error(f"Fehler beim Download von {file_name}: {img_response.status_code}")
+            response_data = response.json()
+            sharepoint_files = response_data.get('value', [])
+            total_files += len(sharepoint_files)
+            logger.info(f"Verarbeite {len(sharepoint_files)} Dateien...")
+            
+            # Download jeder Datei in der aktuellen Seite
+            for file in sharepoint_files:
+                if file.get('name', '').lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
+                    file_id = file['id']
+                    download_url = f'https://graph.microsoft.com/v1.0/sites/{site_id}/drives/{drive_id}/items/{file_id}/content'
+                    file_name = file['name']
+                    target_path = os.path.join(target_dir, file_name)
                     
-        logger.info("Bildsynchronisation abgeschlossen")
+                    img_response = requests.get(download_url, headers=headers)
+                    if img_response.status_code == 200:
+                        with open(target_path, 'wb') as f:
+                            f.write(img_response.content)
+                        logger.info(f"Bild erfolgreich heruntergeladen: {file_name}")
+                    else:
+                        logger.error(f"Fehler beim Download von {file_name}: {img_response.status_code}")
+            
+            # Prüfe, ob es weitere Seiten gibt
+            next_link = response_data.get('@odata.nextLink', None)
+            
+        logger.info(f"Bildsynchronisation abgeschlossen. Insgesamt {total_files} Dateien verarbeitet")
     except Exception as e:
         logger.error(f"Fehler bei der Bildsynchronisation: {str(e)}")
         raise
