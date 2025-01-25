@@ -1,10 +1,14 @@
 {
 	"name": "Nginx Dev Container",
 	"dockerComposeFile": "../docker-compose.yml",
-	"service": "nginx",
+	"service": "web",
 	"workspaceFolder": "/usr/share/nginx/html",
 	"extensions": [
-	  "ms-azuretools.vscode-docker"
-	]
+	  "ms-azuretools.vscode-docker",
+	  "ms-python.python"
+	],
+	"postCreateCommand": "pip install -r /workspace/requirements.txt",
+	"forwardPorts": [8089],
+	"remoteUser": "root"
   }
   
