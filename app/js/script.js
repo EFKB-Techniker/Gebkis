@@ -359,6 +359,13 @@ document.addEventListener('DOMContentLoaded', () => {
             .sort((a, b) => {
                 const dateA = parseDateDE(a.geburtsdatum);
                 const dateB = parseDateDE(b.geburtsdatum);
+
+                // Zuerst nach Monat sortieren
+                if (dateA.getMonth() !== dateB.getMonth()) {
+                    return dateA.getMonth() - dateB.getMonth();
+                }
+
+                // Dann nach Tag sortieren
                 return dateA.getDate() - dateB.getDate();
             });
 
@@ -376,10 +383,9 @@ document.addEventListener('DOMContentLoaded', () => {
             birthdayItem.innerHTML = `
                 <img src="images/keinfoto.png" alt="${birthday.vorname} ${birthday.nachname}" 
                      data-error-reported="false">
-                <p class="name">${birthday.nachname} ${birthday.vorname}</p>
-                <p class="date">${formattedDate}</p>
-            `;
-
+            <p class="name">${birthday.nachname} ${birthday.vorname}</p>
+            <p class="date">${formattedDate}</p>
+        `;
             gridContainer.appendChild(birthdayItem);
 
             const personalImage = new Image();

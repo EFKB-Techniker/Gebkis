@@ -1,0 +1,21 @@
+FROM debian:bullseye-slim
+
+RUN apt-get update && apt-get install -y \
+    curl \
+    unzip \
+    cron \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install rclone using curl
+RUN curl -O https://downloads.rclone.org/rclone-current-linux-amd64.zip \
+    && unzip rclone-current-linux-amd64.zip \
+    && mv rclone-*-linux-amd64/rclone /usr/bin/ \
+    && rm -rf rclone-*-linux-amd64 rclone-current-linux-amd64.zip
+
+WORKDIR /usr/src/app
+
+COPY .env ./
+COPY scripts/sync_script.sh /usr/src/app/sync_script.sh
+RUN chmod +x /usr/src/app/sync_script.sh
+
+CMD ["/usr/src/app/sync_script.sh"]
