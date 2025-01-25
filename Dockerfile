@@ -21,7 +21,7 @@ COPY cronjob /etc/cron.d/mycron
 RUN chmod 0644 /etc/cron.d/mycron \
     && crontab /etc/cron.d/mycron
 
-COPY app /usr/share/nginx/html
+COPY app /usr/share/nginx/html/app
 COPY nginx.conf /etc/nginx/nginx.conf
 
 EXPOSE 80
