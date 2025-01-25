@@ -71,8 +71,8 @@ def get_access_token():
 def download_xls(access_token):
     logger.debug("Starte XLS Download...")
     sharepoint_url = f'https://graph.microsoft.com/v1.0/sites/{site_id}/drives/{drive_id}/items/{item_id}/content'
-    # headers = {'Authorization': 'Bearer <TOKEN_HIDDEN>'}  # Sicheres Logging
-    headers = {"Authorization": f"Bearer {access_token}"}  # NACHHER LÖSCHEN !!!! Sicheres Logging
+    headers = {'Authorization': 'Bearer <TOKEN_HIDDEN>'}  # Sicheres Logging
+    # headers = {"Authorization": f"Bearer {access_token}"}  # DEBUG ONLY Logging !!!!
     
     logger.debug(f"SharePoint URL: {sharepoint_url}")
     logger.debug(f"Request Headers: {headers}")
