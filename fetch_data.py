@@ -43,6 +43,7 @@ tenant_id = os.getenv('TENANT_ID')
 site_id = os.getenv('SITE_ID')
 drive_id = os.getenv('DRIVE_ID')
 item_id = os.getenv('ITEM_ID')
+image_folder_id = os.getenv('IMAGE_FOLDER_ID')
 
 # Die URL für den Microsoft OAuth 2.0 Token-Endpunkt
 token_url = f'https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token'
@@ -91,11 +92,55 @@ def download_xls(access_token):
         logger.error(f"Fehler beim XLS-Download: {str(e)}")
         raise
 
+# Neue Funktion zum Synchronisieren der Bilder
+def sync_images(access_token):
+    logger.debug("Starte Bildsynchronisation...")
+    folder_url = f'https://graph.microsoft.com/v1.0/sites/{site_id}/drives/{drive_id}/items/{image_folder_id}/children'
+    headers = {"Authorization": f"Bearer {access_token}"}
+    
+    try:
+        # Hole Liste aller Dateien im Ordner
+        response = requests.get(folder_url, headers=headers)
+        if response.status_code != 200:
+            logger.error(f"Fehler beim Abrufen der Bilderliste: {response.status_code}")
+            return
+            
+        sharepoint_files = response.json().get('value', [])
+        logger.info(f"Anzahl der Bilder auf SharePoint: {len(sharepoint_files)}")
+        
+        # Erstelle Zielordner, falls nicht vorhanden
+        target_dir = '/images'
+        os.makedirs(target_dir, exist_ok=True)
+        
+        # Download jeder Datei
+        for file in sharepoint_files:
+            if file.get('name', '').lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
+                # Hole Download-URL für jede Datei
+                file_id = file['id']
+                download_url = f'https://graph.microsoft.com/v1.0/sites/{site_id}/drives/{drive_id}/items/{file_id}/content'
+                file_name = file['name']
+                target_path = os.path.join(target_dir, file_name)
+                
+                # Lade Datei herunter
+                img_response = requests.get(download_url, headers=headers)
+                if img_response.status_code == 200:
+                    with open(target_path, 'wb') as f:
+                        f.write(img_response.content)
+                    logger.info(f"Bild erfolgreich heruntergeladen: {file_name}")
+                else:
+                    logger.error(f"Fehler beim Download von {file_name}: {img_response.status_code}")
+                    
+        logger.info("Bildsynchronisation abgeschlossen")
+    except Exception as e:
+        logger.error(f"Fehler bei der Bildsynchronisation: {str(e)}")
+        raise
+
 if __name__ == "__main__":
     try:
         logger.info("Starte Datenabruf...")
         token = get_access_token()
         download_xls(token)
-        logger.info("Datenabruf erfolgreich beendet")
+        sync_images(token)  # Neue Funktion aufrufen
+        logger.info("Prozess erfolgreich abgeschlossen")
     except Exception as e:
         logger.error(f"Programmfehler: {str(e)}")
