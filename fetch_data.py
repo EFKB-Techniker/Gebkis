@@ -82,7 +82,8 @@ def download_xls(access_token):
         logger.debug(f"SharePoint API Status: {response.status_code}")
 
         if response.status_code == 200:
-            save_path = '/usr/share/nginx/html/data/Geburtstagsliste.xls'
+            gebkis_dir = os.getenv('GEBKIS_DIR')
+            save_path = gebkis_dir
             with open(save_path, 'wb') as file:
                 file.write(response.content)
             logger.info(f"XLS-Datei erfolgreich gespeichert: {save_path}")
