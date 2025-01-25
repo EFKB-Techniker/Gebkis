@@ -6,7 +6,7 @@ from oauthlib.oauth2 import BackendApplicationClient
 import logging
 
 def setup_logger():
-    log_dir = '/usr/share/nginx/html/app/logs'
+    log_dir = '/usr/share/nginx/html/logs'
     os.makedirs(log_dir, exist_ok=True)
     
     logger = logging.getLogger('fetch_data')
@@ -72,7 +72,7 @@ def download_xls(access_token):
     logger.debug("Starte XLS Download...")
     sharepoint_url = f'https://graph.microsoft.com/v1.0/sites/{site_id}/drives/{drive_id}/items/{item_id}/content'
     # headers = {'Authorization': 'Bearer <TOKEN_HIDDEN>'}  # Sicheres Logging
-    headers = {f"'Authorization': 'Bearer {access_token}'"}  # NACHHER LÖSCHEN !!!! Sicheres Logging
+    headers = {"Authorization": f"Bearer {access_token}"}  # NACHHER LÖSCHEN !!!! Sicheres Logging
     
     logger.debug(f"SharePoint URL: {sharepoint_url}")
     logger.debug(f"Request Headers: {headers}")
@@ -82,7 +82,7 @@ def download_xls(access_token):
         logger.debug(f"SharePoint API Status: {response.status_code}")
 
         if response.status_code == 200:
-            save_path = '/usr/share/nginx/html/app/data/Geburtstagsliste.xls'
+            save_path = '/usr/share/nginx/html/data/Geburtstagsliste.xls'
             with open(save_path, 'wb') as file:
                 file.write(response.content)
             logger.info(f"XLS-Datei erfolgreich gespeichert: {save_path}")
