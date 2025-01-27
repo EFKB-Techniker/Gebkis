@@ -31,14 +31,14 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 1vh; /* Mehr Padding für die Titelleiste */
+    padding: 0.8vh; /* Mehr Padding für die Titelleiste */
     background: rgba(45, 45, 45, 0.7);
     backdrop-filter: blur(5px);
-    margin-bottom: 1vh; /* Zusätzlicher Abstand nach unten */
+    margin-bottom: 0.8vh; /* Zusätzlicher Abstand nach unten */
 }
 
 .app-header h1 {
-    font-size: 2.8vw; /* Kleinerer Titel */
+    font-size: min(3.2vw, 4.4vh); /* Größer von 2.8vw */
     margin: 0;
     text-align: center;
 }
@@ -46,23 +46,23 @@ body {
 #birthdayList {
     flex: 1;
     overflow-y: auto;
-    padding: 0.3vh 20px 6vh 20px; /* Zusätzliches Padding unten für Pagination */
+    padding: 0.3vh 20px 2vh 20px; /* Reduziertes Padding unten */
     display: flex;
     justify-content: center;
     align-items: flex-start; /* Änderung zu flex-start */
-    height: calc(100vh - 6vh); /* Mehr nutzbarer Platz */
+    height: calc(100vh - 4vh); /* Mehr nutzbarer Platz (war 5vh) */
 }
 
 .birthday-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr); /* Exakt 3 Spalten */
-    gap: 2vh 2vw; /* Mehr Abstand zwischen den Einträgen */
+    gap: 2vh 2vw; /* Größerer vertikaler Abstand */
     width: 95%; /* Mehr Breite */
     max-width: 1800px;
     margin: 0;
-    padding: 0 2.5vw 5vh 2.5vw; /* Symmetrisches Padding links und rechts */
+    padding: 0 3vw 2vh 3vw; /* Mehr seitliches Padding */
     height: auto; /* Höhe an Inhalt anpassen */
-    margin-top: 2vh; /* Mehr Abstand zur Titelleiste */
+    margin-top: 0.5vh; /* Kleinerer Abstand oben */
     position: relative; /* Hinzufügen für absolute Positionierung des Pagination-Buttons */
 }
 
@@ -70,7 +70,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 0.3vh 1vw; /* Noch kompakteres Padding */
+    padding: 1vh 1vw; /* Mehr vertikales Padding */
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 12px;
     background: rgba(45, 45, 45, 0.7);
@@ -82,12 +82,12 @@ body {
 }
 
 .birthday-item img {
-    width: 16vw; /* Größer von 13vw */
-    height: 16vw;
-    max-width: 350px; /* Größere maximale Größe */
-    max-height: 350px;
-    min-width: 200px;
-    min-height: 200px;
+    width: min(17vw, 30vh); /* Größer von 13vw */
+    height: min(17vw, 30vh);
+    max-width: 300px; /* Größere maximale Größe */
+    max-height: 300px;
+    min-width: 180px;
+    min-height: 180px;
     object-fit: contain;
     border-radius: 1vw;
     margin-bottom: 0.5vh; /* Reduzierter unterer Abstand */
@@ -96,17 +96,17 @@ body {
 }
 
 .birthday-item .name {
-    font-size: 1.8vw; /* Größer von 1.6vw */
+    font-size: min(2.1vw, 3.3vh); /* Größer von 1.8vw */
     font-weight: bold;
-    margin: 0.4vh 0;
+    margin: 0.3vh 0;
     text-align: center;
     color: #ffffff;
 }
 
 .birthday-item .date {
-    font-size: 1.6vw; /* Größer von 1.4vw */
+    font-size: min(1.9vw, 3.1vh); /* Größer von 1.6vw */
     color: #bebebe;
-    margin: 0.3vh 0;
+    margin: 0.2vh 0;
 }
 
 .no-birthdays {
@@ -118,7 +118,7 @@ body {
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: #bebebe;
-    font-size: 1.8vw;
+    font-size: 2.1vw; /* Größer von 1.8vw */
 }
 
 #birthdayList::-webkit-scrollbar {
@@ -140,12 +140,12 @@ body {
 
 .floating-pagination {
     position: absolute;
-    bottom: 2vh;        /* Abstand nach unten */
-    right: 2.5vw; /* Gleicher Abstand wie .birthday-grid padding-right */
+    bottom: 2vh;        /* Näher am unteren Rand */
+    right: 4.5vw; /* Mehr Abstand vom rechten Rand (war 3.5vw) */
     background: rgba(45, 45, 45, 0.95); /* Etwas dunklerer Hintergrund */
     color: #ffffff;
-    padding: 0.8vw 1.5vw;  /* Kompakteres Padding */
-    font-size: 1.8vw;      /* Größere Schrift (war 1.6vw) */
+    padding: 0.8vh 1.5vw;  /* Kompakteres Padding */
+    font-size: min(2.1vw, 3.3vh); /* Größer von 1.8vw */
     border-radius: 1.5vw;  /* Kleinerer Radius für kompakteres Aussehen */
     backdrop-filter: blur(5px);
     border: 1px solid rgba(255, 255, 255, 0.2);
@@ -154,42 +154,20 @@ body {
 }
 
 /* Neue Media Queries für responsive Anpassung */
-@media (max-height: 900px) {
+@media (min-aspect-ratio: 16/9) {
     .birthday-item img {
-        width: 18vw; /* Angepasst von 20vw */
-        height: 18vw;
+        width: min(14vw, 24vh);
+        height: min(14vw, 24vh);
     }
     
-    .birthday-item .name {
-        font-size: 2vw; /* Angepasst von 2.2vw */
-    }
-    
-    .birthday-item .date {
-        font-size: 1.8vw; /* Angepasst von 2vw */
+    .birthday-grid {
+        gap: 3.5vh 2vw; /* Noch mehr vertikaler Abstand bei breiten Bildschirmen */
     }
 }
 
-@media (min-width: 1920px) {
-    .app-header {
-        padding: 1.5vh; /* Noch mehr Padding im Vollbildmodus */
-        margin-bottom: 2vh; /* Mehr Abstand im Vollbildmodus */
-    }
-
-    .birthday-grid {
-        gap: 3vh 2.5vw; /* Größere Abstände im Vollbildmodus */
-        margin-top: 3vh; /* Mehr Abstand im Vollbildmodus */
-    }
-    
+@media (max-aspect-ratio: 4/3) {
     .birthday-item img {
-        width: 18vw;
-        height: 18vw;
-    }
-    
-    .birthday-item .name {
-        font-size: 2vw;
-    }
-    
-    .birthday-item .date {
-        font-size: 1.8vw;
+        width: min(18vw, 32vh);
+        height: min(18vw, 32vh);
     }
 }
