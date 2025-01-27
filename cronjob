@@ -1,2 +1,5 @@
-@reboot /opt/venv/bin/python3 /workspace/fetch_data.py >> /var/log/cron.log 2>&1
+# Führe beim Start aus
+@reboot sleep 30 && /opt/venv/bin/python3 /workspace/fetch_data.py >> /var/log/cron.log 2>&1
+
+# Führe täglich um Mitternacht aus
 0 0 * * * /opt/venv/bin/python3 /workspace/fetch_data.py >> /var/log/cron.log 2>&1
