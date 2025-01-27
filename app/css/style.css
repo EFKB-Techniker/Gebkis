@@ -7,6 +7,7 @@ body {
     position: relative;
     font-family: Arial, sans-serif;
     overflow: hidden;
+    font-size: 1vw; /* Basis-Schriftgröße relativ zur Viewport-Breite */
 }
 
 #video-background {
@@ -17,7 +18,7 @@ body {
     height: 100%;
     object-fit: cover;
     z-index: -1;
-    filter: brightness(0.5); /* Video abdunkeln */
+    filter: brightness(0.9); /* Video abdunkeln */
 }
 
 #app {
@@ -30,14 +31,14 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 15px;
-    gap: 20px;
+    padding: 1vh; /* Mehr Padding für die Titelleiste */
     background: rgba(45, 45, 45, 0.7);
     backdrop-filter: blur(5px);
+    margin-bottom: 1vh; /* Zusätzlicher Abstand nach unten */
 }
 
 .app-header h1 {
-    font-size: 3.5em;
+    font-size: 2.8vw; /* Kleinerer Titel */
     margin: 0;
     text-align: center;
 }
@@ -45,62 +46,79 @@ body {
 #birthdayList {
     flex: 1;
     overflow-y: auto;
-    padding: 20px;
+    padding: 0.3vh 20px 6vh 20px; /* Zusätzliches Padding unten für Pagination */
+    display: flex;
+    justify-content: center;
+    align-items: flex-start; /* Änderung zu flex-start */
+    height: calc(100vh - 6vh); /* Mehr nutzbarer Platz */
 }
 
 .birthday-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
+    grid-template-columns: repeat(3, 1fr); /* Exakt 3 Spalten */
+    gap: 2vh 2vw; /* Mehr Abstand zwischen den Einträgen */
+    width: 95%; /* Mehr Breite */
     max-width: 1800px;
-    margin: 0 auto;
+    margin: 0;
+    padding: 0 2.5vw 5vh 2.5vw; /* Symmetrisches Padding links und rechts */
+    height: auto; /* Höhe an Inhalt anpassen */
+    margin-top: 2vh; /* Mehr Abstand zur Titelleiste */
+    position: relative; /* Hinzufügen für absolute Positionierung des Pagination-Buttons */
 }
 
 .birthday-item {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 15px;
+    padding: 0.3vh 1vw; /* Noch kompakteres Padding */
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 12px;
     background: rgba(45, 45, 45, 0.7);
     backdrop-filter: blur(5px);
+    width: 100%; /* Stellt sicher, dass alle Items gleich breit sind */
+    box-sizing: border-box;
+    max-width: 500px; /* Maximale Breite pro Item */
+    margin: 0 auto; /* Zentriert die Items in ihren Grid-Zellen */
 }
 
 .birthday-item img {
-    width: 500px;
-    height: 500px;
+    width: 16vw; /* Größer von 13vw */
+    height: 16vw;
+    max-width: 350px; /* Größere maximale Größe */
+    max-height: 350px;
+    min-width: 200px;
+    min-height: 200px;
     object-fit: contain;
-    border-radius: 12px;
-    margin-bottom: 15px;
+    border-radius: 1vw;
+    margin-bottom: 0.5vh; /* Reduzierter unterer Abstand */
     background-color: rgba(34, 34, 34, 0.5);
-    padding: 5px;
+    padding: 0.5vw;
 }
 
 .birthday-item .name {
-    font-size: 2.8em;
+    font-size: 1.8vw; /* Größer von 1.6vw */
     font-weight: bold;
-    margin: 8px 0;
+    margin: 0.4vh 0;
     text-align: center;
     color: #ffffff;
 }
 
 .birthday-item .date {
-    font-size: 2.6em;
+    font-size: 1.6vw; /* Größer von 1.4vw */
     color: #bebebe;
-    margin: 4px 0;
+    margin: 0.3vh 0;
 }
 
 .no-birthdays {
     grid-column: 1 / -1;
     text-align: center;
-    padding: 20px;
+    padding: 2vw;
     background: rgba(45, 45, 45, 0.7);
     backdrop-filter: blur(5px);
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: #bebebe;
-    font-size: 1.8em;
+    font-size: 1.8vw;
 }
 
 #birthdayList::-webkit-scrollbar {
@@ -120,34 +138,58 @@ body {
     background: rgba(255, 255, 255, 0.3);
 }
 
-@media (max-width: 1600px) {
+.floating-pagination {
+    position: absolute;
+    bottom: 2vh;        /* Abstand nach unten */
+    right: 2.5vw; /* Gleicher Abstand wie .birthday-grid padding-right */
+    background: rgba(45, 45, 45, 0.95); /* Etwas dunklerer Hintergrund */
+    color: #ffffff;
+    padding: 0.8vw 1.5vw;  /* Kompakteres Padding */
+    font-size: 1.8vw;      /* Größere Schrift (war 1.6vw) */
+    border-radius: 1.5vw;  /* Kleinerer Radius für kompakteres Aussehen */
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* Schatten für bessere Sichtbarkeit */
+    z-index: 1000;       /* Sicherstellen, dass es über anderen Elementen liegt */
+}
+
+/* Neue Media Queries für responsive Anpassung */
+@media (max-height: 900px) {
+    .birthday-item img {
+        width: 18vw; /* Angepasst von 20vw */
+        height: 18vw;
+    }
+    
+    .birthday-item .name {
+        font-size: 2vw; /* Angepasst von 2.2vw */
+    }
+    
+    .birthday-item .date {
+        font-size: 1.8vw; /* Angepasst von 2vw */
+    }
+}
+
+@media (min-width: 1920px) {
+    .app-header {
+        padding: 1.5vh; /* Noch mehr Padding im Vollbildmodus */
+        margin-bottom: 2vh; /* Mehr Abstand im Vollbildmodus */
+    }
+
     .birthday-grid {
-        grid-template-columns: repeat(2, 1fr);
+        gap: 3vh 2.5vw; /* Größere Abstände im Vollbildmodus */
+        margin-top: 3vh; /* Mehr Abstand im Vollbildmodus */
     }
     
     .birthday-item img {
-        width: 220px;
-        height: 220px;
+        width: 18vw;
+        height: 18vw;
     }
-}
-
-@media (max-width: 1000px) {
-    .birthday-grid {
-        grid-template-columns: 1fr;
+    
+    .birthday-item .name {
+        font-size: 2vw;
     }
-}
-
-.floating-pagination {
-    position: fixed;
-    bottom: 60px;  /* Mehr Abstand von unten */
-    right: 60px;   /* Mehr Abstand von rechts */
-    background: rgba(45, 45, 45, 0.95); /* Etwas dunklerer Hintergrund */
-    color: #ffffff;
-    padding: 15px 30px;  /* Mehr Padding für bessere Lesbarkeit */
-    border-radius: 25px;
-    backdrop-filter: blur(5px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    font-size: 1.4em;    /* Größere Schrift */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* Schatten für bessere Sichtbarkeit */
-    z-index: 1000;       /* Sicherstellen, dass es über anderen Elementen liegt */
+    
+    .birthday-item .date {
+        font-size: 1.8vw;
+    }
 }
