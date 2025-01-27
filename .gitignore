@@ -1,4 +1,5 @@
 .env
+stack.env
 .DS_Store
 fetch_data.log
 Geburtstagsliste.xls
