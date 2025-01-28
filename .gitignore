@@ -1,7 +1,5 @@
 .env
-stack.env
 .DS_Store
 fetch_data.log
 Geburtstagsliste.xls
 app/images/*
-.env.dev

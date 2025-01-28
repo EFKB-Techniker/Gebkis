@@ -1,69 +1,50 @@
 import os
+from dotenv import load_dotenv
 import requests
 from requests_oauthlib import OAuth2Session
 from oauthlib.oauth2 import BackendApplicationClient
 import logging
 import json
-from datetime import datetime
-import pytz  # Neue Import für Zeitzonen
 
 def setup_logger():
-    # Setze deutsche Zeitzone
-    tz = pytz.timezone('Europe/Berlin')
+    log_dir = '/usr/share/nginx/html/logs'
+    os.makedirs(log_dir, exist_ok=True)
     
-    class CustomFormatter(logging.Formatter):
-        def formatTime(self, record, datefmt=None):
-            dt = datetime.fromtimestamp(record.created, tz=tz)
-            return dt.strftime('%Y-%m-%d %H:%M:%S %Z')
-        
-        def format(self, record):
-            # Prüfe ob die Nachricht bereits den Prefix enthält
-            if not record.msg.startswith('[Python-Script]'):
-                record.msg = f"[Python-Script] {record.msg}"
-            return super().format(record)
-
     logger = logging.getLogger('fetch_data')
-    logger.setLevel(logging.INFO)  # Ändere zu INFO für weniger ausführliche Logs
+    logger.setLevel(logging.DEBUG)
     
-    # Console Handler für Portainer Logs
+    # Handler für Datei
+    file_handler = logging.FileHandler(f'{log_dir}/fetch_data.log')
+    file_handler.setLevel(logging.DEBUG)
+    
+    # Handler für Konsole
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
     
-    # Formatter mit Zeitzone
-    formatter = CustomFormatter('%(asctime)s - %(levelname)s - %(message)s')
+    # Formatter
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
     console_handler.setFormatter(formatter)
     
-    # File Handler für detaillierte Logs
-    log_dir = '/usr/share/nginx/html/logs'
-    os.makedirs(log_dir, exist_ok=True)
-    file_handler = logging.FileHandler(f'{log_dir}/fetch_data.log')
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(formatter)
-    
-    logger.addHandler(console_handler)
     logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
     
     return logger
 
 # Logger global initialisieren
 logger = setup_logger()
 
-# Direkt Umgebungsvariablen lesen ohne .env
-client_id = os.environ.get('CLIENT_ID')
-client_secret = os.environ.get('CLIENT_SECRET')
-tenant_id = os.environ.get('TENANT_ID')
-site_id = os.environ.get('SITE_ID')
-drive_id = os.environ.get('DRIVE_ID')
-item_id = os.environ.get('ITEM_ID')
-image_folder_id = os.environ.get('IMAGE_FOLDER_ID')
+# Lade die .env-Datei
+load_dotenv()
 
-# Überprüfen der erforderlichen Umgebungsvariablen
-required_vars = ['CLIENT_ID', 'CLIENT_SECRET', 'TENANT_ID', 'SITE_ID', 'DRIVE_ID', 'ITEM_ID', 'IMAGE_FOLDER_ID']
-missing_vars = [var for var in required_vars if not os.environ.get(var)]
-
-if missing_vars:
-    logger.error(f"Fehlende Umgebungsvariablen: {', '.join(missing_vars)}")
-    raise EnvironmentError(f"Fehlende erforderliche Umgebungsvariablen: {', '.join(missing_vars)}")
+# Setze die Umgebungsvariablen aus der .env-Datei
+client_id = os.getenv('CLIENT_ID')
+client_secret = os.getenv('CLIENT_SECRET')
+tenant_id = os.getenv('TENANT_ID')
+site_id = os.getenv('SITE_ID')
+drive_id = os.getenv('DRIVE_ID')
+item_id = os.getenv('ITEM_ID')
+image_folder_id = os.getenv('IMAGE_FOLDER_ID')
 
 # Die URL für den Microsoft OAuth 2.0 Token-Endpunkt
 token_url = f'https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token'
