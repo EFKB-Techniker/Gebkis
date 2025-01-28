@@ -20,15 +20,24 @@ RUN /opt/venv/bin/pip install pytz
 COPY requirements.txt /workspace/requirements.txt
 RUN /opt/venv/bin/pip install -r /workspace/requirements.txt
 
-# Entferne COPY .env, da wir jetzt stack.env verwenden
+# Nginx-Benutzer erstellen und Verzeichnisse vorbereiten
+RUN groupadd -r nginx \
+    && useradd -r -g nginx nginx \
+    && mkdir -p /usr/share/nginx/html/{data,images,logs} \
+    && chown -R nginx:nginx /usr/share/nginx/html \
+    && chmod -R 755 /usr/share/nginx/html
+
+# Logs in stdout/stderr umleiten
+RUN ln -sf /dev/stdout /var/log/nginx/access.log \
+    && ln -sf /dev/stderr /var/log/nginx/error.log \
+    && ln -sf /dev/stdout /var/log/cron.log
+
 COPY fetch_data.py /workspace/fetch_data.py
 
 # Cronjob einrichten
 COPY cronjob /etc/cron.d/app-cron
 RUN chmod 0644 /etc/cron.d/app-cron
 RUN crontab /etc/cron.d/app-cron
-
-# Entferne den alten .env_cron Block, da wir jetzt /etc/environment verwenden
 
 # Stelle sicher, dass das Log-Verzeichnis existiert und Berechtigungen hat
 RUN touch /var/log/cron.log && chmod 666 /var/log/cron.log
@@ -38,11 +47,9 @@ COPY nginx.conf /etc/nginx/nginx.conf
 
 EXPOSE 80
 
-# Startskript hinzufügen
+# Startskript und Entrypoint
 COPY start.sh /start.sh
-RUN chmod +x /start.sh
-
-# Cron-Service im Entrypoint starten
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN chmod +x /start.sh /entrypoint.sh
+
 ENTRYPOINT ["/entrypoint.sh"]
