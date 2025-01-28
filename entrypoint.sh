@@ -1,19 +1,22 @@
 #!/bin/bash
 
-# Alle Umgebungsvariablen in /etc/environment schreiben
-printenv > /etc/environment
+# Debug-Ausgabe für Umgebungsvariablen
+echo "[Entrypoint] Environment-Variablen Status:"
+for var in CLIENT_ID CLIENT_SECRET TENANT_ID SITE_ID DRIVE_ID ITEM_ID IMAGE_FOLDER_ID GEBKIS_DIR GEBKIS_IMG_DIR; do
+    if [ -n "${!var}" ]; then
+        echo "[Entrypoint] $var ist gesetzt"
+    else
+        echo "[Entrypoint] WARNUNG: $var ist nicht gesetzt"
+    fi
+done
 
-# Spezifische Rechte setzen
+# Environment-Variablen für Cron exportieren
+printenv | grep -E "^(CLIENT_|TENANT_|SITE_|DRIVE_|ITEM_|IMAGE_|GEBKIS_|PYTHON)" > /etc/environment
 chmod 644 /etc/environment
 
-# Verzeichnisberechtigungen sicherstellen
+# Verzeichnisberechtigungen
 chown -R nginx:nginx /usr/share/nginx/html
 
-# Cron-Service starten
-service cron start
-
-# Python-Logs in stdout umleiten
-exec 1>/proc/1/fd/1 2>/proc/1/fd/2
-
-# Nginx im Vordergrund starten
+# Services starten
+service cron restart
 exec nginx -g 'daemon off;'

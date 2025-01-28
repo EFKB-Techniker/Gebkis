@@ -4,3 +4,4 @@ stack.env
 fetch_data.log
 Geburtstagsliste.xls
 app/images/*
+.env.dev
