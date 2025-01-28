@@ -1,7 +1,10 @@
 #!/bin/bash
 
-# Umgebungsvariablen in die cron-Environment-Datei schreiben
-env | grep -E "CLIENT_|TENANT_|SITE_|DRIVE_|ITEM_|IMAGE_|GEBKIS_" > /etc/environment
+# Alle Umgebungsvariablen in /etc/environment schreiben
+printenv > /etc/environment
+
+# Spezifische Rechte setzen
+chmod 644 /etc/environment
 
 # Cron-Service starten
 service cron start
