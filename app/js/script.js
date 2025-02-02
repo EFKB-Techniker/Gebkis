@@ -263,12 +263,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getMonday(date) {
-        const day = date.getDay();
-        const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Wenn Sonntag, dann -6
-        const monday = new Date(date);
-        monday.setDate(diff);
-        monday.setHours(0, 0, 0, 0);
-        return monday;
+        const result = new Date(date);
+        const day = result.getDay();
+        const diff = result.getDate() - day + (day === 0 ? -6 : 1);
+        result.setDate(diff);
+        result.setHours(0, 0, 0, 0);
+        return result;
     }
 
     function filterBirthdays(birthdays, weekOffset) {
@@ -424,10 +424,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getCurrentWeekRange() {
-        const monday = new Date(CURRENT_DATE);
-        monday.setDate(CURRENT_DATE.getDate() - CURRENT_DATE.getDay() + 1 + (currentWeek * 7));
+        const current = new Date(CURRENT_DATE);
+        const monday = getMonday(current);
+        monday.setDate(monday.getDate() + (currentWeek * 7)); // Offset für vorherige/nächste Wochen
         const sunday = new Date(monday);
         sunday.setDate(monday.getDate() + 6);
+        
+        // Debug-Ausgabe
+        console.log('Wochenberechnung:', {
+            currentWeek,
+            monday: formatDateDE(monday),
+            sunday: formatDateDE(sunday)
+        });
         
         return `${formatDateDE(monday)} - ${formatDateDE(sunday)}`;
     }

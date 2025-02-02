@@ -5,26 +5,39 @@ from requests_oauthlib import OAuth2Session
 from oauthlib.oauth2 import BackendApplicationClient
 import logging
 import json
+from datetime import datetime
+import pytz
 
 def setup_logger():
-    log_dir = '/usr/share/nginx/html/logs'
-    os.makedirs(log_dir, exist_ok=True)
+    # Deutsche Zeitzone setzen
+    tz = pytz.timezone('Europe/Berlin')
+    
+    class TimezoneFormatter(logging.Formatter):
+        def converter(self, timestamp):
+            dt = datetime.fromtimestamp(timestamp)
+            return dt.replace(tzinfo=pytz.UTC).astimezone(tz)
+            
+        def formatTime(self, record, datefmt=None):
+            dt = self.converter(record.created)
+            if datefmt:
+                return dt.strftime(datefmt)
+            return dt.strftime('%Y-%m-%d %H:%M:%S %Z')
     
     logger = logging.getLogger('fetch_data')
     logger.setLevel(logging.DEBUG)
     
+    # Formatter mit korrekter Zeitzone
+    formatter = TimezoneFormatter('%(asctime)s - %(levelname)s - %(message)s')
+    
     # Handler für Datei
-    file_handler = logging.FileHandler(f'{log_dir}/fetch_data.log')
+    file_handler = logging.FileHandler(f'/usr/share/nginx/html/logs/fetch_data.log')
+    file_handler.setFormatter(formatter)
     file_handler.setLevel(logging.DEBUG)
     
     # Handler für Konsole
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    
-    # Formatter
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    file_handler.setFormatter(formatter)
     console_handler.setFormatter(formatter)
+    console_handler.setLevel(logging.INFO)
     
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
