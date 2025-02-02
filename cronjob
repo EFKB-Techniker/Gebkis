@@ -1,2 +1,2 @@
-@reboot /opt/venv/bin/python3 /workspace/fetch_data.py >> /var/log/cron.log 2>&1
-0 0 * * * /opt/venv/bin/python3 /workspace/fetch_data.py >> /var/log/cron.log 2>&1
+@reboot /opt/venv/bin/python3 /workspace/fetch_data.py 2>&1 | tee -a /var/log/cron.log
+0 0 * * * /opt/venv/bin/python3 /workspace/fetch_data.py 2>&1 | tee -a /var/log/cron.log

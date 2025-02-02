@@ -39,8 +39,14 @@ def setup_logger():
     console_handler.setFormatter(formatter)
     console_handler.setLevel(logging.INFO)
     
+    # Neuer Handler für Container-Logging (stdout)
+    container_handler = logging.StreamHandler()
+    container_handler.setFormatter(formatter)
+    container_handler.setLevel(logging.INFO)
+    
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
+    logger.addHandler(container_handler)
     
     return logger
 
