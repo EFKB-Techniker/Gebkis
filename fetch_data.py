@@ -7,6 +7,7 @@ import logging
 import json
 from datetime import datetime
 import pytz
+import sys
 
 def setup_logger():
     # Deutsche Zeitzone setzen
@@ -34,18 +35,12 @@ def setup_logger():
     file_handler.setFormatter(formatter)
     file_handler.setLevel(logging.DEBUG)
     
-    # Handler für Konsole
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-    console_handler.setLevel(logging.INFO)
-    
-    # Neuer Handler für Container-Logging (stdout)
-    container_handler = logging.StreamHandler()
+    # Handler für Container-Logging (stdout)
+    container_handler = logging.StreamHandler(sys.stdout)  # Explizit stdout verwenden
     container_handler.setFormatter(formatter)
     container_handler.setLevel(logging.INFO)
     
     logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
     logger.addHandler(container_handler)
     
     return logger

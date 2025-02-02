@@ -7,6 +7,8 @@ RUN apt-get update && apt-get install -y \
     python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
+RUN adduser --system --no-create-home --disabled-login --disabled-password --group nginx
+
 RUN python3 -m venv /opt/venv \
     && /opt/venv/bin/pip install --upgrade pip
 
@@ -24,9 +26,11 @@ RUN chmod 0644 /etc/cron.d/mycron \
 COPY app /usr/share/nginx/html/app
 COPY nginx.conf /etc/nginx/nginx.conf
 
+RUN mkdir -p /usr/share/nginx/html/logs && \
+    chown -R nginx:nginx /usr/share/nginx/html
+
 EXPOSE 80
 
-# Startskript hinzufügen
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
