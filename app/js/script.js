@@ -394,7 +394,7 @@ document.addEventListener('DOMContentLoaded', () => {
             birthdayItem.innerHTML = `
                 <img src="images/keinfoto.png" alt="${birthday.vorname} ${birthday.nachname}" 
                      data-error-reported="false">
-            <p class="name">${birthday.nachname} ${birthday.vorname}</p>
+            <p class="name">${birthday.vorname} ${birthday.nachname}</p>
             <p class="date">${formattedDate}</p>
         `;
             gridContainer.appendChild(birthdayItem);
