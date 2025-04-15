@@ -34,17 +34,32 @@ def setup_logger():
 # Logger global initialisieren
 logger = setup_logger()
 
-# Lade die .env-Datei
-load_dotenv()
+# Prüfe ob alle benötigten Umgebungsvariablen gesetzt sind
+required_env_vars = {
+    'CLIENT_ID': os.getenv('CLIENT_ID'),
+    'CLIENT_SECRET': os.getenv('CLIENT_SECRET'),
+    'TENANT_ID': os.getenv('TENANT_ID'),
+    'SITE_ID': os.getenv('SITE_ID'),
+    'DRIVE_ID': os.getenv('DRIVE_ID'),
+    'ITEM_ID': os.getenv('ITEM_ID'),
+    'IMAGE_FOLDER_ID': os.getenv('IMAGE_FOLDER_ID')
+}
 
-# Setze die Umgebungsvariablen aus der .env-Datei
-client_id = os.getenv('CLIENT_ID')
-client_secret = os.getenv('CLIENT_SECRET')
-tenant_id = os.getenv('TENANT_ID')
-site_id = os.getenv('SITE_ID')
-drive_id = os.getenv('DRIVE_ID')
-item_id = os.getenv('ITEM_ID')
-image_folder_id = os.getenv('IMAGE_FOLDER_ID')
+# Prüfe auf fehlende Umgebungsvariablen
+missing_vars = [var for var, value in required_env_vars.items() if value is None]
+if missing_vars:
+    error_msg = f"Fehlende Umgebungsvariablen: {', '.join(missing_vars)}"
+    logger.error(error_msg)
+    raise ValueError(error_msg)
+
+# Setze die Variablen
+client_id = required_env_vars['CLIENT_ID']
+client_secret = required_env_vars['CLIENT_SECRET']
+tenant_id = required_env_vars['TENANT_ID']
+site_id = required_env_vars['SITE_ID']
+drive_id = required_env_vars['DRIVE_ID']
+item_id = required_env_vars['ITEM_ID']
+image_folder_id = required_env_vars['IMAGE_FOLDER_ID']
 
 # Die URL für den Microsoft OAuth 2.0 Token-Endpunkt
 token_url = f'https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token'
