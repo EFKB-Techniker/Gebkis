@@ -6,7 +6,6 @@ services:
       - "8089:80"
     volumes:
       - ./app:/usr/share/nginx/html
-      - ./nginx.conf:/etc/nginx/nginx.conf
     environment:
       - PYTHONUNBUFFERED=1
       - CLIENT_ID=${CLIENT_ID}

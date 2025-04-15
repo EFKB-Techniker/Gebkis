@@ -20,7 +20,11 @@ RUN chmod 0644 /etc/cron.d/mycron \
     && crontab /etc/cron.d/mycron
 
 COPY app /usr/share/nginx/html/app
+
+# Nginx setup
+RUN mkdir -p /etc/nginx
 COPY nginx.conf /etc/nginx/nginx.conf
+RUN chown -R root:root /etc/nginx
 
 EXPOSE 80
 
