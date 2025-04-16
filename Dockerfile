@@ -22,6 +22,10 @@ RUN chmod 0644 /etc/cron.d/mycron \
     && crontab /etc/cron.d/mycron
 
 COPY app /usr/share/nginx/html/app
+
+# Kopiere das Video explizit in den Container
+COPY app/images/background.mp4 /usr/share/nginx/html/images/background.mp4
+
 COPY nginx.conf /etc/nginx/nginx.conf
 
 EXPOSE 80
