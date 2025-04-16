@@ -1,14 +1,23 @@
-version: '3'
+version: '3.7'
 services:
   web:
     build: .
     ports:
-      - "$PORT:80"
+      - "${PORT}:80"
     volumes:
       - ./app:/usr/share/nginx/html
       - ./nginx.conf:/etc/nginx/nginx.conf
     environment:
+      - CLIENT_ID=${CLIENT_ID}
+      - CLIENT_SECRET=${CLIENT_SECRET}
+      - TENANT_ID=${TENANT_ID}
+      - SITE_ID=${SITE_ID}
+      - DRIVE_ID=${DRIVE_ID}
+      - ITEM_ID=${ITEM_ID}
+      - IMAGE_FOLDER_ID=${IMAGE_FOLDER_ID}
+      - GEBKIS_DIR=${GEBKIS_DIR}
+      - GEBKIS_IMG_DIR=${GEBKIS_IMG_DIR}
       - PYTHONUNBUFFERED=1
     labels:
-      - "com.centurylinklabs.watchtower.enable=false"
+      - "com.centurylinklabs.watchtower.enable=false"  # Disable watchtower for this service
     restart: always

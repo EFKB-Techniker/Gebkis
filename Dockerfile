@@ -13,7 +13,7 @@ RUN python3 -m venv /opt/venv \
 COPY requirements.txt /workspace/requirements.txt
 RUN /opt/venv/bin/pip install -r /workspace/requirements.txt
 
-COPY .env /workspace/.env
+# COPY .env /workspace/.env
 
 COPY fetch_data.py /workspace/fetch_data.py
 
