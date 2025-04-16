@@ -1,4 +1,8 @@
-node_modules
+# Ignoriere unnötige Dateien und Ordner
 .git
 *.log
 *.env
+node_modules
+__pycache__
+*.pyc
+*.pyo

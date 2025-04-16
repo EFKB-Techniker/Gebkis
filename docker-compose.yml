@@ -1,7 +1,7 @@
 version: '3.7'
 services:
   web:
-    build: .
+    image: gebkis-web
     ports:
       - "${PORT}:80"
     volumes:
@@ -19,5 +19,5 @@ services:
       - GEBKIS_IMG_DIR=${GEBKIS_IMG_DIR}
       - PYTHONUNBUFFERED=1
     labels:
-      - "com.centurylinklabs.watchtower.enable=false"  # Disable watchtower for this service
+      - "com.centurylinklabs.watchtower.enable=false"
     restart: always
