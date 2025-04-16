@@ -1,7 +1,9 @@
 version: '3.7'
 services:
   web:
-    build: .
+    build:
+      context: https://github.com/EFKB-Techniker/Gebkis.git
+      dockerfile: Dockerfile
     ports:
       - "${PORT}:80"
     volumes:
