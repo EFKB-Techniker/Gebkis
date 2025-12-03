@@ -1,14 +1,13 @@
-version: '3.7'
 services:
   web:
     build:
-      context: https://github.com/EFKB-Techniker/Gebkis.git
+      context: .
       dockerfile: Dockerfile
     ports:
       - "${PORT}:80"
     volumes:
-      - ./app:/usr/share/nginx/html/app
-      - ./app/images/background.mp4:/usr/share/nginx/html/images/background.mp4
+      - ./gebkis-frontend:/usr/share/nginx/html/gebkis-frontend
+      - ./logs:/workspace/logs
       - ./nginx.conf:/etc/nginx/nginx.conf
     environment:
       - CLIENT_ID=${CLIENT_ID}
@@ -16,8 +15,9 @@ services:
       - TENANT_ID=${TENANT_ID}
       - SITE_ID=${SITE_ID}
       - DRIVE_ID=${DRIVE_ID}
-      - ITEM_ID=${ITEM_ID}
+      - EXCEL_FILE_PATH=${EXCEL_FILE_PATH}
       - IMAGE_FOLDER_ID=${IMAGE_FOLDER_ID}
+      - LOG_DIR=${LOG_DIR}
       - GEBKIS_DIR=${GEBKIS_DIR}
       - GEBKIS_IMG_DIR=${GEBKIS_IMG_DIR}
       - PYTHONUNBUFFERED=1

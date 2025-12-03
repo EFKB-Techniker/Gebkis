@@ -6,6 +6,3 @@ node_modules
 __pycache__
 *.pyc
 *.pyo
-
-# Ignoriere das Video beim Build
-app/images/background.mp4

@@ -1,11 +1,35 @@
 document.addEventListener('DOMContentLoaded', () => {
     // Globale Variablen
-    window.birthdays = []; // Global verfügbar machen
+    window.birthdays = [];
     let currentWeek = 0;
     let currentPage = 0;
     const ITEMS_PER_PAGE = 6;
-    const CURRENT_DATE = new Date(); // Verwendet das aktuelle Datum
-    const CURRENT_USER = 'r0xx5';
+    const CURRENT_DATE = new Date();
+
+    // Parse URL to set initial state
+    function parseURL() {
+        const path = window.location.pathname;
+        const match = path.match(/(aktuelle|vorherige)_woche_s(\d+)\.html/);
+        
+        if (match) {
+            currentWeek = match[1] === 'vorherige' ? -1 : 0;
+            currentPage = parseInt(match[2]) - 1;
+        } else {
+            // Redirect to default page if URL doesn't match
+            window.location.href = '/aktuelle_woche_s1.html';
+        }
+    }
+
+    // Update URL based on current state
+    function updateURL() {
+        const weekType = currentWeek === 0 ? 'aktuelle' : 'vorherige';
+        const page = currentPage + 1;
+        const newURL = `/${weekType}_woche_s${page}.html`;
+        
+        if (window.location.pathname !== newURL) {
+            window.history.pushState({}, '', newURL);
+        }
+    }
 
     // Video Background hinzufügen
     const videoBackground = document.createElement('video');
@@ -14,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     videoBackground.loop = true;
     videoBackground.muted = true;
     videoBackground.playsinline = true;
-    videoBackground.src = 'images/background.mp4';
+    videoBackground.src = 'public/background.mp4';
     document.body.appendChild(videoBackground);
 
     // Container für die gesamte App erstellen
@@ -26,19 +50,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const header = document.createElement('div');
     header.className = 'app-header';
     
-    // Zurück-Button
-    const prevWeekBtn = document.createElement('button');
-    prevWeekBtn.className = 'nav-button';
-    prevWeekBtn.innerHTML = '◀';
-    
     // Titel
     const title = document.createElement('h1');
     title.textContent = 'Geburtstage der Woche';
-    
-    // Vor-Button
-    const nextWeekBtn = document.createElement('button');
-    nextWeekBtn.className = 'nav-button';
-    nextWeekBtn.innerHTML = '▶';
+    header.appendChild(title);
 
     // Floating Pagination Text
     const paginationText = document.createElement('div');
@@ -47,11 +62,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Floating Pagination an body anhängen
     document.body.appendChild(paginationText);
 
-    // Header zusammenbauen
-    header.appendChild(prevWeekBtn);
-    header.appendChild(title);
-    header.appendChild(nextWeekBtn);
-    
     // Geburtstagsliste Container erstellen
     const birthdayList = document.createElement('div');
     birthdayList.id = 'birthdayList';
@@ -60,26 +70,14 @@ document.addEventListener('DOMContentLoaded', () => {
     appContainer.appendChild(header);
     appContainer.appendChild(birthdayList);
 
-    prevWeekBtn.addEventListener('click', handlePrevPage);
-    nextWeekBtn.addEventListener('click', handleNextPage);
+    // Initialize the page
+    parseURL();
+    updateBirthdayList();
 
-    document.addEventListener('keydown', (e) => {
-        switch(e.key.toLowerCase()) {
-            case 'l':
-                e.preventDefault();
-                handleNextPage();
-                break;
-            case 'j':
-                e.preventDefault();
-                handlePrevPage();
-                break;
-            case 'k':
-                e.preventDefault();
-                currentWeek = 0;
-                currentPage = 0;
-                updateBirthdayList();
-                break;
-        }
+    // Handle browser back/forward
+    window.addEventListener('popstate', () => {
+        parseURL();
+        updateBirthdayList();
     });
 
     function handleNextPage() {
@@ -265,12 +263,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getMonday(date) {
-        const day = date.getDay();
-        const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Wenn Sonntag, dann -6
-        const monday = new Date(date);
-        monday.setDate(diff);
-        monday.setHours(0, 0, 0, 0);
-        return monday;
+        const result = new Date(date);
+        const day = result.getDay();
+        const diff = result.getDate() - day + (day === 0 ? -6 : 1);
+        result.setDate(diff);
+        result.setHours(0, 0, 0, 0);
+        return result;
     }
 
     function filterBirthdays(birthdays, weekOffset) {
@@ -421,13 +419,23 @@ document.addEventListener('DOMContentLoaded', () => {
             const convertedVorname = convertUmlautsInFilename(birthday.vorname);
             personalImage.src = `images/${imageDate} - ${convertedNachname}, ${convertedVorname}.jpg`;
         });
+
+        updateURL();
     }
 
     function getCurrentWeekRange() {
-        const monday = new Date(CURRENT_DATE);
-        monday.setDate(CURRENT_DATE.getDate() - CURRENT_DATE.getDay() + 1 + (currentWeek * 7));
+        const current = new Date(CURRENT_DATE);
+        const monday = getMonday(current);
+        monday.setDate(monday.getDate() + (currentWeek * 7)); // Offset für vorherige/nächste Wochen
         const sunday = new Date(monday);
         sunday.setDate(monday.getDate() + 6);
+        
+        // Debug-Ausgabe
+        console.log('Wochenberechnung:', {
+            currentWeek,
+            monday: formatDateDE(monday),
+            sunday: formatDateDE(sunday)
+        });
         
         return `${formatDateDE(monday)} - ${formatDateDE(sunday)}`;
     }

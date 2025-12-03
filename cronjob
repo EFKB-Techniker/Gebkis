@@ -1,2 +1,3 @@
 @reboot /opt/venv/bin/python3 /workspace/fetch_data.py >> /var/log/cron.log 2>&1
-0 0 * * * /opt/venv/bin/python3 /workspace/fetch_data.py >> /var/log/cron.log 2>&1
+0 5 * * * /opt/venv/bin/python3 /workspace/fetch_data.py >> /var/log/cron.log 2>&1
+*/30 * * * * /opt/venv/bin/python3 /workspace/fetch_data.py >> /var/log/cron.log 2>&1
