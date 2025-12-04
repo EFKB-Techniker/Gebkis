@@ -6,9 +6,10 @@ services:
     ports:
       - "${PORT}:80"
     volumes:
+    # Bind mounts for persistent data and logs
       - type: bind
-        source: gebkis-frontend
-        target: /usr/share/nginx/html/gebkis-frontend
+        source: gebkis-data
+        target: /usr/share/nginx/html/gebkis-data
       - type: bind
         source: gebkis-logs
         target: /workspace/logs

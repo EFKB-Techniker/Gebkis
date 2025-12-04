@@ -5,6 +5,6 @@
 *.xls
 *.xlsx
 *.mp4
+*.jpg
+etag_cache.json
 config.env
-gebkis-frontend/images/*
-!gebkis-frontend/images/keinfoto.*
