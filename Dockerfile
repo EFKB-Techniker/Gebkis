@@ -26,11 +26,10 @@ COPY cronjob /etc/cron.d/mycron
 RUN chmod 0644 /etc/cron.d/mycron \
     && crontab /etc/cron.d/mycron
 
-# Copy Frontend-Files to Nginx HTML directory
-COPY gebkis-frontend /usr/share/nginx/html/gebkis-frontend
-
 COPY nginx.conf /etc/nginx/nginx.conf
 
+# Copy Frontend-Files to Nginx HTML directory
+COPY gebkis-frontend /usr/share/nginx/html/gebkis-frontend
 EXPOSE 80
 
 # Startskript hinzufügen
