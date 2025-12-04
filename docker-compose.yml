@@ -10,11 +10,8 @@ services:
         source: gebkis-frontend
         target: /usr/share/nginx/html/gebkis-frontend
       - type: bind
-        source: logs
+        source: gebkis-logs
         target: /workspace/logs
-      - type: bind
-        source: nginx.conf
-        target: /etc/nginx/nginx.conf
     environment:
       - CLIENT_ID=${CLIENT_ID}
       - CLIENT_SECRET=${CLIENT_SECRET}
