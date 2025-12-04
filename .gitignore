@@ -4,7 +4,6 @@
 *.log
 *.xls
 *.xlsx
-*.mp4
 *.jpg
 etag_cache.json
 config.env
