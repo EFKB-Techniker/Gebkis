@@ -6,9 +6,15 @@ services:
     ports:
       - "${PORT}:80"
     volumes:
-      - ./gebkis-frontend:/usr/share/nginx/html/gebkis-frontend
-      - ./logs:/workspace/logs
-      - ./nginx.conf:/etc/nginx/nginx.conf
+      - type: bind
+        source: gebkis-frontend
+        target: /usr/share/nginx/html/gebkis-frontend
+      - type: bind
+        source: logs
+        target: /workspace/logs
+      - type: bind
+        source: nginx.conf
+        target: /etc/nginx/nginx.conf
     environment:
       - CLIENT_ID=${CLIENT_ID}
       - CLIENT_SECRET=${CLIENT_SECRET}
