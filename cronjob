@@ -5,4 +5,5 @@
 # Every day at 5am
 # 0 5 * * * . /project_env.sh; /opt/venv/bin/python3 /workspace/fetch_data.py 2>&1 | tee -a ${LOG_DIR}/cron.log > /proc/1/fd/1
 
+# /proc/1/fd/1 to forward output to docker logs
 # Make sure this file ends with a newline and is using LF line endings NOT CRLF !!!
