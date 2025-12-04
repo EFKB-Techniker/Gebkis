@@ -1,4 +1,8 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+
+    // articially delay 
+    await new Promise(resolve => setTimeout(resolve, 200));
+
     // Globale Variablen
     window.birthdays = [];
     let currentWeek = 0;
@@ -31,29 +35,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Video Background hinzufügen
-    const videoBackground = document.createElement('video');
-    videoBackground.id = 'video-background';
-    videoBackground.autoplay = true;
-    videoBackground.loop = true;
-    videoBackground.muted = true;
-    videoBackground.playsinline = true;
-    videoBackground.src = 'public/background.mp4';
-    document.body.appendChild(videoBackground);
+    // Container für die gesamte App referenzieren
+    const appContainer = document.getElementById('app');
 
-    // Container für die gesamte App erstellen
-    const appContainer = document.createElement('div');
-    appContainer.id = 'app';
-    document.body.appendChild(appContainer);
-
-    // Header erstellen
-    const header = document.createElement('div');
-    header.className = 'app-header';
-    
-    // Titel
-    const title = document.createElement('h1');
-    title.textContent = 'Geburtstage der Woche';
-    header.appendChild(title);
+    // Header referenzieren
+    const header = appContainer.querySelector('.app-header');
+    const title = header.querySelector('h1');
 
     // Floating Pagination Text
     const paginationText = document.createElement('div');
@@ -62,13 +49,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Floating Pagination an body anhängen
     document.body.appendChild(paginationText);
 
-    // Geburtstagsliste Container erstellen
-    const birthdayList = document.createElement('div');
-    birthdayList.id = 'birthdayList';
-
-    // Komponenten zur App hinzufügen
-    appContainer.appendChild(header);
-    appContainer.appendChild(birthdayList);
+    // Geburtstagsliste Container referenzieren
+    const birthdayList = document.getElementById('birthdayList');
 
     // Initialize the page
     parseURL();
@@ -311,7 +293,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateBirthdayList() {
-        fetch('data/Geburtstagsliste.xls')
+        // Dynamisch die Excel-Datei ermitteln
+        fetch('excel/')
+            .then(response => response.json())
+            .then(files => {
+                // Filtere nach .xls oder .xlsx Dateien
+                // Wir nehmen die erste gefundene Datei
+                const excelFile = files.find(f => 
+                    f.name.toLowerCase().endsWith('.xls') || 
+                    f.name.toLowerCase().endsWith('.xlsx')
+                );
+
+                if (!excelFile) {
+                    throw new Error('Keine Excel-Datei gefunden');
+                }
+
+                console.log('Lade Excel-Datei:', excelFile.name);
+                return fetch(`excel/${excelFile.name}`);
+            })
             .then(response => response.arrayBuffer())
             .then(data => {
                 const workbook = XLSX.read(new Uint8Array(data), {type: 'array'});
@@ -336,6 +335,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.error('Fehler beim Parsen der XLS:', e);
                     throw e;
                 }
+            })
+            .catch(error => {
+                console.error('Fehler beim Laden der Daten:', error);
             });
     }
 
@@ -388,36 +390,44 @@ document.addEventListener('DOMContentLoaded', () => {
             const birthDate = parseDateDE(birthday.geburtsdatum);
             const formattedDate = `${birthDate.getDate().toString().padStart(2, '0')}. ${getMonthName(birthDate.getMonth())}`;
             
+            // Dateinamen vorbereiten
+            const imageDate = formatDateUSShort(birthDate);
+            const convertedNachname = convertUmlautsInFilename(birthday.nachname);
+            const convertedVorname = convertUmlautsInFilename(birthday.vorname);
+            const personalImageSrc = `images/${imageDate} - ${convertedNachname}, ${convertedVorname}.jpg`;
+
             const birthdayItem = document.createElement('div');
             birthdayItem.className = 'birthday-item';
 
+            // Transparentes Platzhalter-Bild verwenden, um Flackern zu vermeiden
             birthdayItem.innerHTML = `
-                <img src="images/keinfoto.png" alt="${birthday.vorname} ${birthday.nachname}" 
+                <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" 
+                     alt="${birthday.vorname} ${birthday.nachname}" 
                      data-error-reported="false">
             <p class="name">${birthday.vorname} ${birthday.nachname}</p>
             <p class="date">${formattedDate}</p>
         `;
             gridContainer.appendChild(birthdayItem);
 
-            const personalImage = new Image();
             const imgElement = birthdayItem.querySelector('img');
+            const personalImage = new Image();
 
             personalImage.onload = () => {
                 imgElement.src = personalImage.src;
             };
 
             personalImage.onerror = () => {
+                // Fallback auf Standardbild, wenn persönliches Bild nicht existiert
+                imgElement.src = "images/keinfoto.png";
+                
                 if (imgElement.dataset.errorReported === "false") {
                     console.log(`Info: Verwende Standardbild für ${birthday.vorname} ${birthday.nachname}`);
                     imgElement.dataset.errorReported = "true";
                 }
             };
 
-            const imageDate = formatDateUSShort(birthDate);
-            // Konvertiere Umlaute im Nachnamen und Vornamen für den Dateinamen
-            const convertedNachname = convertUmlautsInFilename(birthday.nachname);
-            const convertedVorname = convertUmlautsInFilename(birthday.vorname);
-            personalImage.src = `images/${imageDate} - ${convertedNachname}, ${convertedVorname}.jpg`;
+            // Ladevorgang starten
+            personalImage.src = personalImageSrc;
         });
 
         updateURL();

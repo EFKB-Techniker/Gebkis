@@ -1,0 +1,39 @@
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #233939;
+    color: #ffffff;
+    height: 100vh;
+    position: relative;
+    font-family: Arial, sans-serif;
+    overflow: hidden;
+    font-size: 1vw; /* Basis-Schriftgröße relativ zur Viewport-Breite */
+}
+
+#video-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: -1;
+    filter: brightness(0.9); /* Video abdunkeln */
+}
+
+#birthdayList::-webkit-scrollbar {
+    width: 10px;
+}
+
+#birthdayList::-webkit-scrollbar-track {
+    background: rgba(45, 45, 45, 0.3);
+}
+
+#birthdayList::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+}
+
+#birthdayList::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}

@@ -1,0 +1,13 @@
+/* Fade In Animation for real content */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+.app-header,
+.birthday-item {
+    animation: fadeIn 2.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}

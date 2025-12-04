@@ -6,6 +6,7 @@ from oauthlib.oauth2 import BackendApplicationClient
 import logging
 import json
 import fnmatch
+import urllib.parse
 
 # Prüfe ob alle benötigten Umgebungsvariablen gesetzt sind
 required_env_vars = {
@@ -15,7 +16,7 @@ required_env_vars = {
     'SITE_ID': os.getenv('SITE_ID'),
     'DRIVE_ID': os.getenv('DRIVE_ID'),
     'EXCEL_FILE_PATH': os.getenv('EXCEL_FILE_PATH'),
-    'IMAGE_FOLDER_ID': os.getenv('IMAGE_FOLDER_ID'),
+    'IMAGE_FOLDER_PATH': os.getenv('IMAGE_FOLDER_PATH'),
     'LOG_DIR': os.getenv('LOG_DIR')
 }
 
@@ -61,7 +62,7 @@ tenant_id = required_env_vars['TENANT_ID']
 site_id = required_env_vars['SITE_ID']
 drive_id = required_env_vars['DRIVE_ID']
 excel_file_path = required_env_vars['EXCEL_FILE_PATH']
-image_folder_id = required_env_vars['IMAGE_FOLDER_ID']
+image_folder_path = required_env_vars['IMAGE_FOLDER_PATH']
 
 # Die URL für den Microsoft OAuth 2.0 Token-Endpunkt
 token_url = f'https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token'
@@ -88,7 +89,7 @@ def get_access_token():
 
 # Hilfsfunktion um File ID anhand des Pfades zu ermitteln
 def get_file_id_from_path(access_token, full_path):
-    logger.debug(f"Suche Datei mit Pfad-Pattern: {full_path}")
+    logger.info(f"Suche Datei mit Pfad-Pattern: {full_path}")
     
     # Pfad und Dateinamen-Pattern trennen
     if '/' in full_path:
@@ -122,7 +123,7 @@ def get_file_id_from_path(access_token, full_path):
             if 'file' in file: # Sicherstellen, dass es eine Datei ist
                 if fnmatch.fnmatch(file['name'], file_pattern):
                     logger.info(f"Datei gefunden: {file['name']} (ID: {file['id']})")
-                    return file['id']
+                    return file['id'], file['name']
                     
         error_msg = f"Keine Datei gefunden, die dem Pattern '{file_pattern}' im Ordner '{folder_path}' entspricht."
         logger.error(error_msg)
@@ -138,7 +139,7 @@ def download_xls(access_token):
     
     # Hole ID dynamisch anhand des Pfades
     try:
-        file_id = get_file_id_from_path(access_token, excel_file_path)
+        file_id, file_name = get_file_id_from_path(access_token, excel_file_path)
     except Exception as e:
         logger.error(f"Abbruch: Konnte Datei-ID nicht ermitteln. {str(e)}")
         raise
@@ -155,7 +156,18 @@ def download_xls(access_token):
 
         if response.status_code == 200:
             gebkis_dir = os.getenv('GEBKIS_DIR')
-            save_path = gebkis_dir
+            os.makedirs(gebkis_dir, exist_ok=True)
+            
+            # Alte Excel-Dateien bereinigen, damit nur die aktuelle vorhanden ist
+            try:
+                for f in os.listdir(gebkis_dir):
+                    if f.lower().endswith(('.xls', '.xlsx')):
+                        os.remove(os.path.join(gebkis_dir, f))
+                        logger.info(f"Alte Datei entfernt: {f}")
+            except Exception as e:
+                logger.warning(f"Fehler beim Bereinigen alter Dateien: {e}")
+
+            save_path = os.path.join(gebkis_dir, file_name)
             with open(save_path, 'wb') as file:
                 file.write(response.content)
             logger.info(f"XLS-Datei erfolgreich gespeichert: {save_path}")
@@ -165,9 +177,52 @@ def download_xls(access_token):
         logger.error(f"Fehler beim XLS-Download: {str(e)}")
         raise
 
+# Hilfsfunktion um Folder ID anhand des Pfades zu ermitteln
+def get_folder_id_from_path(access_token, folder_path):
+    logger.info(f"Ermittle ID für Ordnerpfad: {folder_path}")
+    
+    # Backslashes zu Forward Slashes konvertieren
+    folder_path = folder_path.replace('\\', '/')
+    
+    # Führenden Slash entfernen falls vorhanden
+    if folder_path.startswith('/'):
+        folder_path = folder_path[1:]
+        
+    # URL Encoding für den Pfad
+    encoded_path = urllib.parse.quote(folder_path)
+    
+    headers = {"Authorization": f"Bearer {access_token}"}
+    
+    # URL konstruieren
+    url = f'https://graph.microsoft.com/v1.0/sites/{site_id}/drives/{drive_id}/root:/{encoded_path}'
+    
+    logger.debug(f"Folder Lookup URL: {url}")
+    
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            folder_id = data['id']
+            logger.info(f"Ordner ID gefunden: {folder_id}")
+            return folder_id
+        else:
+            logger.error(f"Konnte Ordner ID nicht ermitteln. Status: {response.status_code}, Body: {response.text}")
+            raise Exception(f"Ordner nicht gefunden: {folder_path}")
+    except Exception as e:
+        logger.error(f"Fehler beim Folder Lookup: {str(e)}")
+        raise
+
 # Neue Funktion zum Synchronisieren der Bilder
 def sync_images(access_token):
     logger.debug("Starte Bildsynchronisation...")
+    
+    # Hole Folder ID dynamisch
+    try:
+        image_folder_id = get_folder_id_from_path(access_token, image_folder_path)
+    except Exception as e:
+        logger.error(f"Abbruch: Konnte Bilder-Ordner ID nicht ermitteln. {str(e)}")
+        raise
+
     folder_url = f'https://graph.microsoft.com/v1.0/sites/{site_id}/drives/{drive_id}/items/{image_folder_id}/children'
     headers = {"Authorization": f"Bearer {access_token}"}
     
