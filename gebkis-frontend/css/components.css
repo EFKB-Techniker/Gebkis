@@ -1,0 +1,85 @@
+.birthday-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2.5vh 1vw; /* Mehr vertikales Padding */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    background: rgba(45, 45, 45, 0.7);
+    backdrop-filter: blur(5px);
+    width: 100%; /* Stellt sicher, dass alle Items gleich breit sind */
+    box-sizing: border-box;
+    max-width: 500px; /* Maximale Breite pro Item */
+    margin: 0 auto; /* Zentriert die Items in ihren Grid-Zellen */
+}
+
+.birthday-item img {
+    width: min(17vw, 30vh); /* Größer von 13vw */
+    height: min(17vw, 30vh);
+    max-width: 300px; /* Angepasst auf typische Bildgröße */
+    max-height: 300px;
+    min-width: 180px;
+    min-height: 180px;
+    object-fit: contain;
+    border-radius: 1vw;
+    margin-bottom: 0.5vh; /* Reduzierter unterer Abstand */
+    background-color: rgba(34, 34, 34, 0.5);
+    padding: 0.5vw;
+    box-sizing: border-box;
+}
+
+.birthday-item .name {
+    font-size: min(2.1vw, 3.3vh); /* Größer von 1.8vw */
+    font-weight: bold;
+    margin: 0.3vh 0;
+    text-align: center;
+    color: #ffffff;
+}
+
+.birthday-item .date {
+    font-size: min(1.9vw, 3.1vh); /* Größer von 1.6vw */
+    color: #bebebe;
+    margin: 0.2vh 0;
+}
+
+.no-birthdays {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 2vw;
+    background: rgba(45, 45, 45, 0.7);
+    backdrop-filter: blur(5px);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #bebebe;
+    font-size: 2.1vw; /* Größer von 1.8vw */
+}
+
+.floating-pagination {
+    position: absolute;
+    bottom: 2vh;        /* Näher am unteren Rand */
+    right: 4.5vw; /* Mehr Abstand vom rechten Rand (war 3.5vw) */
+    background: rgba(45, 45, 45, 0.95); /* Etwas dunklerer Hintergrund */
+    color: #ffffff;
+    padding: 0.8vh 1.5vw;  /* Kompakteres Padding */
+    font-size: min(2.1vw, 3.3vh); /* Größer von 1.8vw */
+    border-radius: 1.5vw;  /* Kleinerer Radius für kompakteres Aussehen */
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* Schatten für bessere Sichtbarkeit */
+    z-index: 1000;       /* Sicherstellen, dass es über anderen Elementen liegt */
+}
+
+/* Neue Media Queries für responsive Anpassung */
+@media (min-aspect-ratio: 16/9) {
+    .birthday-item img {
+        width: min(14vw, 24vh);
+        height: min(14vw, 24vh);
+    }
+}
+
+@media (max-aspect-ratio: 4/3) {
+    .birthday-item img {
+        width: min(18vw, 32vh);
+        height: min(18vw, 32vh);
+    }
+}

@@ -1,6 +1,10 @@
+.vscode
 .env
 .DS_Store
-fetch_data.log
-Geburtstagsliste.xls
-app/images/*
+*.log
+*.xls
+*.xlsx
+*.mp4
 config.env
+gebkis-frontend/images/*
+!gebkis-frontend/images/keinfoto.*

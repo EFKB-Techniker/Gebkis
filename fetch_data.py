@@ -5,9 +5,23 @@ from requests_oauthlib import OAuth2Session
 from oauthlib.oauth2 import BackendApplicationClient
 import logging
 import json
+import fnmatch
+import urllib.parse
+
+# Prüfe ob alle benötigten Umgebungsvariablen gesetzt sind
+required_env_vars = {
+    'CLIENT_ID': os.getenv('CLIENT_ID'),
+    'CLIENT_SECRET': os.getenv('CLIENT_SECRET'),
+    'TENANT_ID': os.getenv('TENANT_ID'),
+    'SITE_ID': os.getenv('SITE_ID'),
+    'DRIVE_ID': os.getenv('DRIVE_ID'),
+    'EXCEL_FILE_PATH': os.getenv('EXCEL_FILE_PATH'),
+    'IMAGE_FOLDER_PATH': os.getenv('IMAGE_FOLDER_PATH'),
+    'LOG_DIR': os.getenv('LOG_DIR')
+}
 
 def setup_logger():
-    log_dir = '/usr/share/nginx/html/logs'
+    log_dir = required_env_vars['LOG_DIR'] or '.'
     os.makedirs(log_dir, exist_ok=True)
     
     logger = logging.getLogger('fetch_data')
@@ -34,17 +48,21 @@ def setup_logger():
 # Logger global initialisieren
 logger = setup_logger()
 
-# Lade die .env-Datei
-load_dotenv()
+# Prüfe auf fehlende Umgebungsvariablen
+missing_vars = [var for var, value in required_env_vars.items() if value is None]
+if missing_vars:
+    error_msg = f"Fehlende Umgebungsvariablen: {', '.join(missing_vars)}"
+    logger.error(error_msg)
+    raise ValueError(error_msg)
 
-# Setze die Umgebungsvariablen aus der .env-Datei
-client_id = os.getenv('CLIENT_ID')
-client_secret = os.getenv('CLIENT_SECRET')
-tenant_id = os.getenv('TENANT_ID')
-site_id = os.getenv('SITE_ID')
-drive_id = os.getenv('DRIVE_ID')
-item_id = os.getenv('ITEM_ID')
-image_folder_id = os.getenv('IMAGE_FOLDER_ID')
+# Setze die Variablen
+client_id = required_env_vars['CLIENT_ID']
+client_secret = required_env_vars['CLIENT_SECRET']
+tenant_id = required_env_vars['TENANT_ID']
+site_id = required_env_vars['SITE_ID']
+drive_id = required_env_vars['DRIVE_ID']
+excel_file_path = required_env_vars['EXCEL_FILE_PATH']
+image_folder_path = required_env_vars['IMAGE_FOLDER_PATH']
 
 # Die URL für den Microsoft OAuth 2.0 Token-Endpunkt
 token_url = f'https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token'
@@ -69,10 +87,64 @@ def get_access_token():
         logger.error(f"Fehler beim Token-Abruf: {str(e)}")
         raise
 
+# Hilfsfunktion um File ID anhand des Pfades zu ermitteln
+def get_file_id_from_path(access_token, full_path):
+    logger.info(f"Suche Datei mit Pfad-Pattern: {full_path}")
+    
+    # Pfad und Dateinamen-Pattern trennen
+    if '/' in full_path:
+        folder_path, file_pattern = full_path.rsplit('/', 1)
+    else:
+        folder_path = ""
+        file_pattern = full_path
+        
+    headers = {"Authorization": f"Bearer {access_token}"}
+    
+    # URL zum Auflisten des Ordnerinhalts
+    if folder_path:
+        # Syntax: /drives/{drive-id}/root:/{path-relative-to-root}:/children
+        folder_url = f'https://graph.microsoft.com/v1.0/sites/{site_id}/drives/{drive_id}/root:/{folder_path}:/children'
+    else:
+        # Root folder
+        folder_url = f'https://graph.microsoft.com/v1.0/sites/{site_id}/drives/{drive_id}/root/children'
+        
+    logger.debug(f"Liste Ordnerinhalt auf: {folder_url}")
+    
+    try:
+        response = requests.get(folder_url, headers=headers)
+        if response.status_code != 200:
+            logger.error(f"Fehler beim Auflisten des Ordners. Status: {response.status_code}, Body: {response.text}")
+            raise Exception(f"Konnte Ordnerinhalt nicht abrufen: {response.status_code}")
+            
+        data = response.json()
+        files = data.get('value', [])
+        
+        for file in files:
+            if 'file' in file: # Sicherstellen, dass es eine Datei ist
+                if fnmatch.fnmatch(file['name'], file_pattern):
+                    logger.info(f"Datei gefunden: {file['name']} (ID: {file['id']})")
+                    return file['id'], file['name']
+                    
+        error_msg = f"Keine Datei gefunden, die dem Pattern '{file_pattern}' im Ordner '{folder_path}' entspricht."
+        logger.error(error_msg)
+        raise FileNotFoundError(error_msg)
+        
+    except Exception as e:
+        logger.error(f"Fehler bei der Dateisuche: {str(e)}")
+        raise
+
 # Abrufen der XLS-Datei von SharePoint
 def download_xls(access_token):
     logger.debug("Starte XLS Download...")
-    sharepoint_url = f'https://graph.microsoft.com/v1.0/sites/{site_id}/drives/{drive_id}/items/{item_id}/content'
+    
+    # Hole ID dynamisch anhand des Pfades
+    try:
+        file_id, file_name = get_file_id_from_path(access_token, excel_file_path)
+    except Exception as e:
+        logger.error(f"Abbruch: Konnte Datei-ID nicht ermitteln. {str(e)}")
+        raise
+
+    sharepoint_url = f'https://graph.microsoft.com/v1.0/sites/{site_id}/drives/{drive_id}/items/{file_id}/content'
     headers = {"Authorization": f"Bearer {access_token}"}
     
     logger.debug(f"SharePoint URL: {sharepoint_url}")
@@ -84,7 +156,18 @@ def download_xls(access_token):
 
         if response.status_code == 200:
             gebkis_dir = os.getenv('GEBKIS_DIR')
-            save_path = gebkis_dir
+            os.makedirs(gebkis_dir, exist_ok=True)
+            
+            # Alte Excel-Dateien bereinigen, damit nur die aktuelle vorhanden ist
+            try:
+                for f in os.listdir(gebkis_dir):
+                    if f.lower().endswith(('.xls', '.xlsx')):
+                        os.remove(os.path.join(gebkis_dir, f))
+                        logger.info(f"Alte Datei entfernt: {f}")
+            except Exception as e:
+                logger.warning(f"Fehler beim Bereinigen alter Dateien: {e}")
+
+            save_path = os.path.join(gebkis_dir, file_name)
             with open(save_path, 'wb') as file:
                 file.write(response.content)
             logger.info(f"XLS-Datei erfolgreich gespeichert: {save_path}")
@@ -94,9 +177,52 @@ def download_xls(access_token):
         logger.error(f"Fehler beim XLS-Download: {str(e)}")
         raise
 
+# Hilfsfunktion um Folder ID anhand des Pfades zu ermitteln
+def get_folder_id_from_path(access_token, folder_path):
+    logger.info(f"Ermittle ID für Ordnerpfad: {folder_path}")
+    
+    # Backslashes zu Forward Slashes konvertieren
+    folder_path = folder_path.replace('\\', '/')
+    
+    # Führenden Slash entfernen falls vorhanden
+    if folder_path.startswith('/'):
+        folder_path = folder_path[1:]
+        
+    # URL Encoding für den Pfad
+    encoded_path = urllib.parse.quote(folder_path)
+    
+    headers = {"Authorization": f"Bearer {access_token}"}
+    
+    # URL konstruieren
+    url = f'https://graph.microsoft.com/v1.0/sites/{site_id}/drives/{drive_id}/root:/{encoded_path}'
+    
+    logger.debug(f"Folder Lookup URL: {url}")
+    
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            folder_id = data['id']
+            logger.info(f"Ordner ID gefunden: {folder_id}")
+            return folder_id
+        else:
+            logger.error(f"Konnte Ordner ID nicht ermitteln. Status: {response.status_code}, Body: {response.text}")
+            raise Exception(f"Ordner nicht gefunden: {folder_path}")
+    except Exception as e:
+        logger.error(f"Fehler beim Folder Lookup: {str(e)}")
+        raise
+
 # Neue Funktion zum Synchronisieren der Bilder
 def sync_images(access_token):
     logger.debug("Starte Bildsynchronisation...")
+    
+    # Hole Folder ID dynamisch
+    try:
+        image_folder_id = get_folder_id_from_path(access_token, image_folder_path)
+    except Exception as e:
+        logger.error(f"Abbruch: Konnte Bilder-Ordner ID nicht ermitteln. {str(e)}")
+        raise
+
     folder_url = f'https://graph.microsoft.com/v1.0/sites/{site_id}/drives/{drive_id}/items/{image_folder_id}/children'
     headers = {"Authorization": f"Bearer {access_token}"}
     
