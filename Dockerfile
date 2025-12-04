@@ -30,6 +30,7 @@ COPY nginx.conf /etc/nginx/nginx.conf
 
 # Copy Frontend-Files to Nginx HTML directory
 COPY gebkis-frontend /workspace/gebkis-frontend
+COPY gebkis-frontend /usr/share/nginx/html/gebkis-frontend2
 EXPOSE 80
 
 # Startskript hinzufügen
