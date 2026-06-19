@@ -23,7 +23,7 @@
 #birthdayList {
     flex: 1;
     overflow-y: auto;
-    padding: 0.3vh 20px 5vh 20px; /* Mehr Padding unten für visuellen Bias nach oben */
+    padding: 2.3vh 20px 5vh 20px; /* Mehr Padding unten für visuellen Bias nach oben */
     display: flex;
     justify-content: center;
     align-items: start;
