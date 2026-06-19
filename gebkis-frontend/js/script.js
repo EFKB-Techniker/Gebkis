@@ -1,462 +1,516 @@
-document.addEventListener('DOMContentLoaded', async () => {
+/**
+ * Geburtstagsliste – Anzeige wochenweise oder (im Debug-Modus) für ein ganzes Jahr.
+ *
+ * URL-Schema:
+ *   /aktuelle_woche_sN.html   Aktuelle Woche, Seite N
+ *   /vorherige_woche_sN.html  Vorherige Woche, Seite N
+ *   /?debug                   Debug-Modus, aktuelles Jahr
+ *   /?debug=2025              Debug-Modus, spezifisches Jahr
+ *   /?debug=2025&page=2       Debug-Modus mit Seite
+ *
+ * Tastatur:
+ *   j / ←   eine Seite zurück (wechselt Woche, wenn am Anfang)
+ *   l / →   eine Seite vorwärts (wechselt Woche, wenn am Ende)
+ *   k       zurück zur aktuellen Woche
+ */
+(() => {
+    'use strict';
 
-    // articially delay 
-    await new Promise(resolve => setTimeout(resolve, 200));
+    // ============================================================
+    // KONFIGURATION
+    // ============================================================
+    const CONFIG = Object.freeze({
+        // Zukünftiges Bildnamensschema: "DD-MMM-YY - Nachname, Vorname.jpg"
+        // Beispiele:  12-Jan-93 - Mustermann, Max.jpg
+        //             01-Mrz-12 - Vogel, Tim.jpg
+        // Sobald die Bilder umbenannt sind, hier auf true setzen.
+        USE_NEW_IMAGE_NAMING: false,
 
-    // Globale Variablen
-    window.birthdays = [];
-    let currentWeek = 0;
-    let currentPage = 0;
-    const ITEMS_PER_PAGE = 6;
-    const CURRENT_DATE = new Date();
+        ITEMS_PER_PAGE: 6,               // Wochenansicht: 3x2 Grid pro Seite
+        ITEMS_PER_PAGE_DEBUG: Infinity,  // Debug: alles auf einer Seite; auf Zahl setzen für Pagination
 
-    // Parse URL to set initial state
+        EXCEL_DIR: 'excel/',
+        IMAGE_DIR: 'images/',
+        FALLBACK_IMAGE: 'images/keinfoto.png',
+
+        DEFAULT_PATH: '/aktuelle_woche_s1.html',
+
+        MONTHS_DE: [
+            'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+            'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+        ],
+
+        MONTHS_DE_SHORT: [
+            'Jan', 'Feb', 'Mrz', 'Apr', 'Mai', 'Jun',
+            'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez',
+        ],
+
+        UMLAUT_MAP: {
+            'ä': 'ae', 'ö': 'oe', 'ü': 'ue',
+            'Ä': 'Ae', 'Ö': 'Oe', 'Ü': 'Ue',
+            'ß': 'ss',
+        },
+
+        // Transparentes 1x1-GIF als Platzhalter, vermeidet Layout-Shift beim Bild-Tausch.
+        PLACEHOLDER_SRC: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+    });
+
+    // ============================================================
+    // STATE
+    // ============================================================
+    const state = {
+        birthdays: [],                              // alle geparsten Einträge
+        weekOffset: 0,                              // 0 = aktuelle Woche
+        page: 0,                                    // 0-basiert
+        debugMode: false,
+        debugYear: new Date().getFullYear(),
+        imageCache: new Map(),                      // src -> Promise<resolvedSrc>
+    };
+
+    let elements = null;  // wird im Init befüllt
+
+    // ============================================================
+    // DATUM
+    // ============================================================
+
+    /** Parst DD.MM.YYYY, YYYY-MM-DD oder Excel-Seriennummern. */
+    function parseDate(input) {
+        if (input == null || input === '') return null;
+
+        // Excel-Seriennummer (Number oder rein numerischer String)
+        const asNum = typeof input === 'number' ? input : Number(input);
+        if (Number.isFinite(asNum) && (typeof input === 'number' || /^\d+(\.\d+)?$/.test(String(input).trim()))) {
+            // Excel-Epoch: 1899-12-30 (korrigiert um den fiktiven Schalttag 1900-02-29)
+            const date = new Date(Date.UTC(1899, 11, 30));
+            date.setUTCDate(date.getUTCDate() + Math.floor(asNum));
+            date.setHours(12, 0, 0, 0);
+            return Number.isNaN(date.getTime()) ? null : date;
+        }
+
+        const str = String(input).trim();
+        let parts;
+        if (str.includes('.')) parts = str.split('.');
+        else if (str.includes('-')) parts = str.split('-').reverse();
+        else return null;
+
+        if (parts.length !== 3) return null;
+        const [d, m, y] = parts.map(p => parseInt(p, 10));
+        if (![d, m, y].every(Number.isFinite)) return null;
+
+        const date = new Date(y, m - 1, d, 12, 0, 0, 0);
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    function formatDateDE(date) {
+        const pad = n => String(n).padStart(2, '0');
+        return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()}`;
+    }
+
+    /** MM.DD.YY für altes Bildnamens-Schema. */
+    function formatDateForImage(date) {
+        const pad = n => String(n).padStart(2, '0');
+        return `${pad(date.getMonth() + 1)}.${pad(date.getDate())}.${String(date.getFullYear()).slice(-2)}`;
+    }
+
+    /** DD-MMM-YY für neues Bildnamens-Schema (z.B. "12-Jan-93"). */
+    function formatDateForImageNew(date) {
+        const pad = n => String(n).padStart(2, '0');
+        const month = CONFIG.MONTHS_DE_SHORT[date.getMonth()];
+        return `${pad(date.getDate())}-${month}-${String(date.getFullYear()).slice(-2)}`;
+    }
+
+    /** Montag der Woche eines gegebenen Datums (ISO-konform). */
+    function getMonday(date) {
+        const d = new Date(date);
+        const day = d.getDay();
+        d.setDate(d.getDate() - day + (day === 0 ? -6 : 1));
+        d.setHours(0, 0, 0, 0);
+        return d;
+    }
+
+    function getWeekRange(weekOffset) {
+        const monday = getMonday(new Date());
+        monday.setDate(monday.getDate() + weekOffset * 7);
+        const sunday = new Date(monday);
+        sunday.setDate(sunday.getDate() + 6);
+        sunday.setHours(23, 59, 59, 999);
+        return { monday, sunday };
+    }
+
+    /**
+     * Prüft, ob ein Geburtstag (Tag/Monat) in einen Wochenbereich fällt.
+     * Berücksichtigt Jahreswechsel, falls die Woche über zwei Jahre läuft.
+     */
+    function isInWeekRange(birthDate, monday, sunday) {
+        const years = new Set([monday.getFullYear(), sunday.getFullYear()]);
+        for (const year of years) {
+            const candidate = new Date(year, birthDate.getMonth(), birthDate.getDate(), 12);
+            if (candidate >= monday && candidate <= sunday) return true;
+        }
+        return false;
+    }
+
+    // ============================================================
+    // STRINGS / BILDPFADE
+    // ============================================================
+
+    function convertUmlauts(str) {
+        return str.replace(/[äöüÄÖÜß]/g, ch => CONFIG.UMLAUT_MAP[ch] || ch);
+    }
+
+    function getImageSrc(birthday) {
+        const last = convertUmlauts(birthday.nachname);
+        const first = convertUmlauts(birthday.vorname);
+        const dateStr = CONFIG.USE_NEW_IMAGE_NAMING
+            ? formatDateForImageNew(birthday.date)
+            : formatDateForImage(birthday.date);
+        return `${CONFIG.IMAGE_DIR}${dateStr} - ${last}, ${first}.jpg`;
+    }
+
+    // ============================================================
+    // URL-HANDLING
+    // ============================================================
+
     function parseURL() {
-        const path = window.location.pathname;
-        const match = path.match(/(aktuelle|vorherige)_woche_s(\d+)\.html/);
-        
+        const url = new URL(window.location.href);
+        const debugParam = url.searchParams.get('debug');
+
+        if (debugParam !== null) {
+            state.debugMode = true;
+            const year = parseInt(debugParam, 10);
+            state.debugYear = Number.isFinite(year) ? year : new Date().getFullYear();
+            const pageNum = parseInt(url.searchParams.get('page'), 10);
+            state.page = Number.isFinite(pageNum) ? Math.max(0, pageNum - 1) : 0;
+            return;
+        }
+
+        state.debugMode = false;
+        const match = url.pathname.match(/(aktuelle|vorherige)_woche_s(\d+)\.html/);
         if (match) {
-            currentWeek = match[1] === 'vorherige' ? -1 : 0;
-            currentPage = parseInt(match[2]) - 1;
+            state.weekOffset = match[1] === 'vorherige' ? -1 : 0;
+            state.page = Math.max(0, parseInt(match[2], 10) - 1);
         } else {
-            // Redirect to default page if URL doesn't match
-            window.location.href = '/aktuelle_woche_s1.html';
+            // Default-Pfad setzen ohne Reload
+            window.history.replaceState({}, '', CONFIG.DEFAULT_PATH);
+            state.weekOffset = 0;
+            state.page = 0;
         }
     }
 
-    // Update URL based on current state
+    function buildCurrentURL() {
+        if (state.debugMode) {
+            return `/?debug=${state.debugYear}${state.page > 0 ? `&page=${state.page + 1}` : ''}`;
+        }
+        const prefix = state.weekOffset < 0 ? 'vorherige' : 'aktuelle';
+        return `/${prefix}_woche_s${state.page + 1}.html`;
+    }
+
     function updateURL() {
-        const weekType = currentWeek === 0 ? 'aktuelle' : 'vorherige';
-        const page = currentPage + 1;
-        const newURL = `/${weekType}_woche_s${page}.html`;
-        
-        if (window.location.pathname !== newURL) {
+        const newURL = buildCurrentURL();
+        const current = window.location.pathname + window.location.search;
+        if (current !== newURL) {
             window.history.pushState({}, '', newURL);
         }
     }
 
-    // Container für die gesamte App referenzieren
-    const appContainer = document.getElementById('app');
+    // ============================================================
+    // DATEN LADEN
+    // ============================================================
 
-    // Header referenzieren
-    const header = appContainer.querySelector('.app-header');
-    const title = header.querySelector('h1');
+    async function findExcelFile() {
+        const res = await fetch(CONFIG.EXCEL_DIR);
+        if (!res.ok) throw new Error(`Excel-Verzeichnis nicht erreichbar (HTTP ${res.status})`);
+        const files = await res.json();
+        const excel = files.find(f => /\.xlsx?$/i.test(f.name));
+        if (!excel) throw new Error('Keine .xls/.xlsx-Datei im Verzeichnis gefunden');
+        return excel.name;
+    }
 
-    // Floating Pagination Text
-    const paginationText = document.createElement('div');
-    paginationText.className = 'floating-pagination';
+    async function loadBirthdays() {
+        const filename = await findExcelFile();
+        console.log('[birthdays] Lade', filename);
 
-    // Floating Pagination an body anhängen
-    document.body.appendChild(paginationText);
+        const res = await fetch(`${CONFIG.EXCEL_DIR}${filename}`);
+        if (!res.ok) throw new Error(`Excel-Datei nicht ladbar (HTTP ${res.status})`);
 
-    // Geburtstagsliste Container referenzieren
-    const birthdayList = document.getElementById('birthdayList');
+        const buffer = await res.arrayBuffer();
+        const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 'A', range: 1, raw: true });
 
-    // Initialize the page
-    parseURL();
-    updateBirthdayList();
-
-    // Handle browser back/forward
-    window.addEventListener('popstate', () => {
-        parseURL();
-        updateBirthdayList();
-    });
-
-    function handleNextPage() {
-        const filteredBirthdays = filterBirthdays(window.birthdays, currentWeek);
-        const totalPages = Math.ceil(filteredBirthdays.length / ITEMS_PER_PAGE);
-        
-        console.log('Debug: ', {
-            currentPage,
-            totalPages,
-            totalBirthdays: filteredBirthdays.length
-        });
-
-        if (currentPage < totalPages - 1) {
-            // Noch Seiten in dieser Woche verfügbar
-            currentPage++;
-            displayBirthdays(filteredBirthdays);
-            updateTitle();
-        } else {
-            // Zur nächsten Woche wechseln
-            currentWeek++;
-            currentPage = 0;
-            const nextWeekBirthdays = filterBirthdays(window.birthdays, currentWeek);
-            displayBirthdays(nextWeekBirthdays);
-            updateTitle();
+        const parsed = [];
+        for (const row of rows) {
+            const vorname = String(row.B || '').trim();
+            const nachname = String(row.C || '').trim();
+            const date = parseDate(row.D);
+            if (!vorname || !nachname || !date) continue;
+            parsed.push({ vorname, nachname, date });
         }
+        console.log(`[birthdays] ${parsed.length} Einträge geparst`);
+        return parsed;
     }
 
-    function handlePrevPage() {
-        const filteredBirthdays = filterBirthdays(window.birthdays, currentWeek);
-        
-        if (currentPage > 0) {
-            // Noch vorherige Seiten in dieser Woche
-            currentPage--;
-            displayBirthdays(filteredBirthdays);
-            updateTitle();
-        } else {
-            // Zur vorherigen Woche wechseln
-            currentWeek--;
-            const prevWeekBirthdays = filterBirthdays(window.birthdays, currentWeek);
-            currentPage = Math.ceil(prevWeekBirthdays.length / ITEMS_PER_PAGE) - 1;
-            displayBirthdays(prevWeekBirthdays);
-            updateTitle();
-        }
+    // ============================================================
+    // FILTER / SORT
+    // ============================================================
+
+    function sortByDayOfYear(a, b) {
+        if (a.date.getMonth() !== b.date.getMonth()) return a.date.getMonth() - b.date.getMonth();
+        if (a.date.getDate() !== b.date.getDate()) return a.date.getDate() - b.date.getDate();
+        return a.nachname.localeCompare(b.nachname, 'de');
     }
 
-    function handleKeyPress(event) {
-        switch(event.key.toLowerCase()) {
-            case 'j':
-                navigateToPreviousWeek();
-                break;
-            case 'l':
-                navigateToNextWeek();
-                break;
-            case 'k':
-                navigateToCurrentWeek();
-                break;
-        }
-    }
-
-    function navigateToPreviousWeek() {
-        if (currentPage > 0) {
-            // Innerhalb der aktuellen Woche zurückschalten
-            currentPage--;
-            const currentWeekBirthdays = filterBirthdays(window.birthdays, currentWeek);
-            displayBirthdays(currentWeekBirthdays);
-        } else {
-            // Vorherige Woche
-            currentWeek--;
-            const prevWeekBirthdays = filterBirthdays(window.birthdays, currentWeek);
-            if (prevWeekBirthdays.length > 0) {
-                currentPage = Math.max(0, Math.ceil(prevWeekBirthdays.length / ITEMS_PER_PAGE) - 1);
-                displayBirthdays(prevWeekBirthdays);
-            } else {
-                // Wenn keine Geburtstage in der vorherigen Woche, zurück zur aktuellen
-                currentWeek++;
-                const currentWeekBirthdays = filterBirthdays(window.birthdays, currentWeek);
-                displayBirthdays(currentWeekBirthdays);
-            }
-        }
-        updateTitle();
-    }
-
-    function navigateToNextWeek() {
-        const filteredBirthdays = filterBirthdays(window.birthdays, currentWeek);
-        const maxPages = Math.ceil(filteredBirthdays.length / ITEMS_PER_PAGE);
-
-        if (currentPage < maxPages - 1) {
-            // Innerhalb der aktuellen Woche weiterschalten
-            currentPage++;
-            displayBirthdays(filteredBirthdays);
-        } else {
-            // Nächste Woche
-            currentWeek++;
-            currentPage = 0;
-            const nextWeekBirthdays = filterBirthdays(window.birthdays, currentWeek);
-            if (nextWeekBirthdays.length > 0) {
-                displayBirthdays(nextWeekBirthdays);
-            } else {
-                // Wenn keine Geburtstage in der nächsten Woche, zurück zur aktuellen
-                currentWeek--;
-                displayBirthdays(filteredBirthdays);
-            }
-        }
-        updateTitle();
-    }
-
-    function navigateToCurrentWeek() {
-        currentWeek = 0;
-        updateTitle();
-        updateBirthdayList();
-    }
-
-    function updateTitle() {
-        const filteredBirthdays = filterBirthdays(window.birthdays, currentWeek);
-        const totalPages = Math.ceil(filteredBirthdays.length / ITEMS_PER_PAGE);
-        
-        title.textContent = `Geburtstage vom ${getCurrentWeekRange()}`;
-        
-
-        // Update Floating Pagination
-        if (totalPages > 1) {
-            paginationText.textContent = `Seite ${currentPage + 1} von ${totalPages}`;
-            paginationText.style.display = 'block';
-        } else {
-            paginationText.style.display = 'none';
-        }
-    }
-
-    function parseDateDE(dateStr) {
-        if (!dateStr) return null;
-        
-        if (!isNaN(dateStr)) {
-            const date = new Date('1900-01-01');
-            date.setDate(date.getDate() + parseInt(dateStr) - 2);
-            return date;
-        }
-        
-        let parts;
-        if (dateStr.includes('.')) {
-            parts = dateStr.split('.').map(part => part.trim());
-        } else if (dateStr.includes('-')) {
-            parts = dateStr.split('-').reverse().map(part => part.trim());
-        } else {
-            return null;
-        }
-
-        const [day, month, year] = parts.map(num => parseInt(num, 10));
-        if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
-
-        const date = new Date(year, month - 1, day);
-        date.setHours(12, 0, 0, 0);
-        return date;
-    }
-
-    function formatDateDE(date) {
-        const day = date.getDate().toString().padStart(2, '0');
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const year = date.getFullYear();
-        return `${day}.${month}.${year}`;
-    }
-
-    function formatDateUSShort(date) {
-        const day = date.getDate().toString().padStart(2, '0');
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const year = date.getFullYear().toString().slice(-2);
-        return `${month}.${day}.${year}`;
-    }
-
-    function convertUmlautsInFilename(name) {
-        // Umlaute-Mapping
-        const umlautMap = {
-            'ä': 'ae',
-            'ö': 'oe',
-            'ü': 'ue',
-            'Ä': 'Ae',
-            'Ö': 'Oe',
-            'Ü': 'Ue',
-            'ß': 'ss'
-        };
-
-        // Ersetze alle Umlaute durch ihre entsprechende Kombination
-        return name.replace(/[äöüÄÖÜß]/g, (umlaut) => umlautMap[umlaut]);
-    }
-
-    function getMonday(date) {
-        const result = new Date(date);
-        const day = result.getDay();
-        const diff = result.getDate() - day + (day === 0 ? -6 : 1);
-        result.setDate(diff);
-        result.setHours(0, 0, 0, 0);
-        return result;
-    }
-
-    function filterBirthdays(birthdays, weekOffset) {
-        const current = new Date(CURRENT_DATE);
-        const monday = getMonday(current);
-        monday.setDate(monday.getDate() + (weekOffset * 7));
-        const sunday = new Date(monday);
-        sunday.setDate(sunday.getDate() + 6);
-        
-        // Filter und Sortierung
-        return birthdays
-            .filter(birthday => {
-                if (!birthday.vorname || !birthday.nachname || !birthday.geburtsdatum) return false;
-                const birthDate = parseDateDE(birthday.geburtsdatum);
-                if (!birthDate || isNaN(birthDate.getTime())) return false;
-
-                const currentYear = CURRENT_DATE.getFullYear();
-                const checkDates = [
-                    currentYear - 1,
-                    currentYear,
-                    currentYear + 1,
-                    currentYear + 2,
-                    currentYear + 3
-                ].map(year => new Date(year, birthDate.getMonth(), birthDate.getDate()));
-
-                return checkDates.some(date => date >= monday && date <= sunday);
-            })
-            .sort((a, b) => {
-                const dateA = parseDateDE(a.geburtsdatum);
-                const dateB = parseDateDE(b.geburtsdatum);
-                
-                // Vergleiche zuerst den Tag
-                if (dateA.getDate() !== dateB.getDate()) {
-                    return dateA.getDate() - dateB.getDate();
-                }
-                
-                // Bei gleichem Tag nach Nachname sortieren
-                return a.nachname.localeCompare(b.nachname, 'de');
-            });
-    }
-
-    function updateBirthdayList() {
-        // Dynamisch die Excel-Datei ermitteln
-        fetch('excel/')
-            .then(response => response.json())
-            .then(files => {
-                // Filtere nach .xls oder .xlsx Dateien
-                // Wir nehmen die erste gefundene Datei
-                const excelFile = files.find(f => 
-                    f.name.toLowerCase().endsWith('.xls') || 
-                    f.name.toLowerCase().endsWith('.xlsx')
+    function getVisibleBirthdays() {
+        if (state.debugMode) {
+            // Debug-Modus: das volle Jahr (Januar–Dezember), alle Personen,
+            // sortiert nach Tag/Monat. KEINE Filterung nach heutigem Datum oder Woche.
+            const sorted = [...state.birthdays].sort(sortByDayOfYear);
+            if (sorted.length > 0) {
+                const first = sorted[0];
+                const last = sorted[sorted.length - 1];
+                console.log(
+                    `[birthdays] Debug: ${sorted.length} Einträge, ` +
+                    `erster: ${formatDateDE(first.date)} (${first.vorname} ${first.nachname}), ` +
+                    `letzter: ${formatDateDE(last.date)} (${last.vorname} ${last.nachname})`
                 );
-
-                if (!excelFile) {
-                    throw new Error('Keine Excel-Datei gefunden');
-                }
-
-                console.log('Lade Excel-Datei:', excelFile.name);
-                return fetch(`excel/${excelFile.name}`);
-            })
-            .then(response => response.arrayBuffer())
-            .then(data => {
-                const workbook = XLSX.read(new Uint8Array(data), {type: 'array'});
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-
-                try {
-                    window.birthdays = XLSX.utils.sheet_to_json(worksheet, {
-                        header: 'A',
-                        range: 1,
-                        raw: true
-                    }).map(row => ({
-                        vorname: row.B || '',
-                        nachname: row.C || '',
-                        geburtsdatum: row.D || '',
-                    }));
-
-                    const filteredBirthdays = filterBirthdays(window.birthdays, currentWeek);
-                    displayBirthdays(filteredBirthdays);
-                    updateTitle();
-                } catch (e) {
-                    console.error('Fehler beim Parsen der XLS:', e);
-                    throw e;
-                }
-            })
-            .catch(error => {
-                console.error('Fehler beim Laden der Daten:', error);
-            });
+            }
+            return sorted;
+        }
+        const { monday, sunday } = getWeekRange(state.weekOffset);
+        return state.birthdays
+            .filter(b => isInWeekRange(b.date, monday, sunday))
+            .sort(sortByDayOfYear);
     }
 
-    function displayBirthdays(birthdays) {
-        birthdayList.innerHTML = '';
-        const gridContainer = document.createElement('div');
-        gridContainer.className = 'birthday-grid';
-        birthdayList.appendChild(gridContainer);
+    function getPageSize() {
+        return state.debugMode ? CONFIG.ITEMS_PER_PAGE_DEBUG : CONFIG.ITEMS_PER_PAGE;
+    }
 
-        if (birthdays.length === 0) {
-            gridContainer.innerHTML = `
-                <div class="no-birthdays">
-                    <p>Keine Geburtstage in dieser Woche</p>
-                </div>`;
-            return;
-        }
+    // ============================================================
+    // BILDER (mit Cache)
+    // ============================================================
 
-        // Gruppierung nach Geburtstagen
-        const birthdayGroups = birthdays.reduce((groups, birthday) => {
-            const date = parseDateDE(birthday.geburtsdatum);
-            const key = date.getDate();
-            if (!groups[key]) {
-                groups[key] = [];
-            }
-            groups[key].push(birthday);
-            return groups;
-        }, {});
+    function loadImage(src) {
+        const cached = state.imageCache.get(src);
+        if (cached) return cached;
 
-        // Flache Liste mit gruppierten Geburtstagen erstellen
-        const sortedBirthdays = Object.values(birthdayGroups)
-            .flat()
-            .sort((a, b) => {
-                const dateA = parseDateDE(a.geburtsdatum);
-                const dateB = parseDateDE(b.geburtsdatum);
-
-                // Zuerst nach Monat sortieren
-                if (dateA.getMonth() !== dateB.getMonth()) {
-                    return dateA.getMonth() - dateB.getMonth();
-                }
-
-                // Dann nach Tag sortieren
-                return dateA.getDate() - dateB.getDate();
-            });
-
-        const start = currentPage * ITEMS_PER_PAGE;
-        const paginatedBirthdays = sortedBirthdays.slice(start, start + ITEMS_PER_PAGE);
-
-        // ...existing display code...
-        paginatedBirthdays.forEach(birthday => {
-            const birthDate = parseDateDE(birthday.geburtsdatum);
-            const formattedDate = `${birthDate.getDate().toString().padStart(2, '0')}. ${getMonthName(birthDate.getMonth())}`;
-            
-            // Dateinamen vorbereiten
-            const imageDate = formatDateUSShort(birthDate);
-            const convertedNachname = convertUmlautsInFilename(birthday.nachname);
-            const convertedVorname = convertUmlautsInFilename(birthday.vorname);
-            const personalImageSrc = `images/${imageDate} - ${convertedNachname}, ${convertedVorname}.jpg`;
-
-            const birthdayItem = document.createElement('div');
-            birthdayItem.className = 'birthday-item';
-
-            // Transparentes Platzhalter-Bild verwenden, um Flackern zu vermeiden
-            birthdayItem.innerHTML = `
-                <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" 
-                     alt="${birthday.vorname} ${birthday.nachname}" 
-                     data-error-reported="false">
-            <p class="name">${birthday.vorname} ${birthday.nachname}</p>
-            <p class="date">${formattedDate}</p>
-        `;
-            gridContainer.appendChild(birthdayItem);
-
-            const imgElement = birthdayItem.querySelector('img');
-            const personalImage = new Image();
-
-            personalImage.onload = () => {
-                imgElement.src = personalImage.src;
+        const promise = new Promise(resolve => {
+            const img = new Image();
+            img.onload = () => resolve(src);
+            img.onerror = () => {
+                console.info(`[birthdays] Fallback für ${src}`);
+                resolve(CONFIG.FALLBACK_IMAGE);
             };
+            img.src = src;
+        });
+        state.imageCache.set(src, promise);
+        return promise;
+    }
 
-            personalImage.onerror = () => {
-                // Fallback auf Standardbild, wenn persönliches Bild nicht existiert
-                imgElement.src = "images/keinfoto.png";
-                
-                if (imgElement.dataset.errorReported === "false") {
-                    console.log(`Info: Verwende Standardbild für ${birthday.vorname} ${birthday.nachname}`);
-                    imgElement.dataset.errorReported = "true";
-                }
-            };
+    // ============================================================
+    // RENDERING
+    // ============================================================
 
-            // Ladevorgang starten
-            personalImage.src = personalImageSrc;
+    function renderBirthdayItem(birthday) {
+        const item = document.createElement('div');
+        item.className = 'birthday-item';
+
+        const img = document.createElement('img');
+        img.src = CONFIG.PLACEHOLDER_SRC;
+        img.alt = `${birthday.vorname} ${birthday.nachname}`;
+
+        const name = document.createElement('p');
+        name.className = 'name';
+        name.textContent = `${birthday.vorname} ${birthday.nachname}`;
+
+        const date = document.createElement('p');
+        date.className = 'date';
+        const day = String(birthday.date.getDate()).padStart(2, '0');
+        date.textContent = `${day}. ${CONFIG.MONTHS_DE[birthday.date.getMonth()]}`;
+
+        item.append(img, name, date);
+
+        // Bild asynchron mit Cache laden
+        loadImage(getImageSrc(birthday)).then(src => {
+            // img bleibt im Speicher, auch wenn aus DOM entfernt – kein Bug, nur No-Op.
+            img.src = src;
         });
 
+        return item;
+    }
+
+    function buildTitle() {
+        if (state.debugMode) {
+            return `Alle Geburtstage – ${state.debugYear}`;
+        }
+        const { monday, sunday } = getWeekRange(state.weekOffset);
+        return `Geburtstage vom ${formatDateDE(monday)} - ${formatDateDE(sunday)}`;
+    }
+
+    function render() {
+        const visible = getVisibleBirthdays();
+        const pageSize = getPageSize();
+        const totalPages = Number.isFinite(pageSize)
+            ? Math.max(1, Math.ceil(visible.length / pageSize))
+            : 1;
+
+        // Seite in gültigen Bereich clampen
+        state.page = Math.min(Math.max(0, state.page), totalPages - 1);
+
+        const pageItems = Number.isFinite(pageSize)
+            ? visible.slice(state.page * pageSize, state.page * pageSize + pageSize)
+            : visible;
+
+        // Titel + Pagination-Anzeige
+        elements.title.textContent = buildTitle();
+        if (totalPages > 1) {
+            elements.pagination.textContent = `Seite ${state.page + 1} von ${totalPages}`;
+            elements.pagination.style.display = 'block';
+        } else {
+            elements.pagination.style.display = 'none';
+        }
+
+        // Liste neu aufbauen
+        const grid = document.createElement('div');
+        grid.className = 'birthday-grid';
+
+        if (pageItems.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'no-birthdays';
+            const p = document.createElement('p');
+            p.textContent = state.debugMode
+                ? `Keine Geburtstage für ${state.debugYear}`
+                : 'Keine Geburtstage in dieser Woche';
+            empty.appendChild(p);
+            grid.appendChild(empty);
+        } else {
+            const frag = document.createDocumentFragment();
+            for (const b of pageItems) frag.appendChild(renderBirthdayItem(b));
+            grid.appendChild(frag);
+        }
+
+        elements.list.replaceChildren(grid);
+        elements.list.scrollTop = 0;
         updateURL();
     }
 
-    function getCurrentWeekRange() {
-        const current = new Date(CURRENT_DATE);
-        const monday = getMonday(current);
-        monday.setDate(monday.getDate() + (currentWeek * 7)); // Offset für vorherige/nächste Wochen
-        const sunday = new Date(monday);
-        sunday.setDate(monday.getDate() + 6);
-        
-        // Debug-Ausgabe
-        console.log('Wochenberechnung:', {
-            currentWeek,
-            monday: formatDateDE(monday),
-            sunday: formatDateDE(sunday)
+    function renderError(err) {
+        elements.title.textContent = 'Fehler beim Laden';
+        const grid = document.createElement('div');
+        grid.className = 'birthday-grid';
+        grid.innerHTML = `
+            <div class="no-birthdays">
+                <p>Geburtstage konnten nicht geladen werden.</p>
+                <p style="font-size: 0.7em; opacity: 0.7;">${err.message || err}</p>
+            </div>`;
+        elements.list.replaceChildren(grid);
+        elements.pagination.style.display = 'none';
+    }
+
+    // ============================================================
+    // NAVIGATION
+    // ============================================================
+
+    function navigatePage(delta) {
+        const pageSize = getPageSize();
+        const totalPages = Number.isFinite(pageSize)
+            ? Math.max(1, Math.ceil(getVisibleBirthdays().length / pageSize))
+            : 1;
+        const newPage = state.page + delta;
+
+        if (newPage < 0) {
+            if (!state.debugMode) navigateWeek(-1, /* goToLastPage */ true);
+            return;
+        }
+        if (newPage >= totalPages) {
+            if (!state.debugMode) navigateWeek(1, /* goToLastPage */ false);
+            return;
+        }
+
+        state.page = newPage;
+        render();
+    }
+
+    function navigateWeek(delta, goToLastPage = false) {
+        if (state.debugMode) return;
+        state.weekOffset += delta;
+        const pageSize = getPageSize();
+        const totalPages = Number.isFinite(pageSize)
+            ? Math.max(1, Math.ceil(getVisibleBirthdays().length / pageSize))
+            : 1;
+        state.page = goToLastPage ? totalPages - 1 : 0;
+        render();
+    }
+
+    function navigateToCurrentWeek() {
+        if (state.debugMode) return;
+        state.weekOffset = 0;
+        state.page = 0;
+        render();
+    }
+
+    function handleKeyPress(event) {
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+        switch (event.key.toLowerCase()) {
+            case 'j':
+            case 'arrowleft':
+                navigatePage(-1);
+                event.preventDefault();
+                break;
+            case 'l':
+            case 'arrowright':
+                navigatePage(1);
+                event.preventDefault();
+                break;
+            case 'k':
+                navigateToCurrentWeek();
+                event.preventDefault();
+                break;
+        }
+    }
+
+    // ============================================================
+    // INIT
+    // ============================================================
+
+    async function init() {
+        const app = document.getElementById('app');
+        if (!app) {
+            console.error('[birthdays] #app nicht gefunden');
+            return;
+        }
+
+        const pagination = document.createElement('div');
+        pagination.className = 'floating-pagination';
+        pagination.style.display = 'none';
+        document.body.appendChild(pagination);
+
+        elements = {
+            title: app.querySelector('.app-header h1'),
+            list: document.getElementById('birthdayList'),
+            pagination,
+        };
+
+        parseURL();
+
+        try {
+            state.birthdays = await loadBirthdays();
+            render();
+        } catch (err) {
+            console.error('[birthdays] Init fehlgeschlagen:', err);
+            renderError(err);
+        }
+
+        document.addEventListener('keydown', handleKeyPress);
+        window.addEventListener('popstate', () => {
+            parseURL();
+            render();
         });
-        
-        return `${formatDateDE(monday)} - ${formatDateDE(sunday)}`;
     }
 
-    function getMonthName(monthIndex) {
-        const months = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 
-                       'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
-        return months[monthIndex];
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
     }
-
-    // Initiale Aktualisierung
-    updateTitle();
-    updateBirthdayList();
-});
+})();
