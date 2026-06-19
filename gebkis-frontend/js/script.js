@@ -24,7 +24,7 @@
         // Beispiele:  12-Jan-93 - Mustermann, Max.jpg
         //             01-Mrz-12 - Vogel, Tim.jpg
         // Sobald die Bilder umbenannt sind, hier auf true setzen.
-        USE_NEW_IMAGE_NAMING: false,
+        USE_NEW_IMAGE_NAMING: true,
 
         ITEMS_PER_PAGE: 6,               // Wochenansicht: 3x2 Grid pro Seite
         ITEMS_PER_PAGE_DEBUG: Infinity,  // Debug: alles auf einer Seite; auf Zahl setzen für Pagination
