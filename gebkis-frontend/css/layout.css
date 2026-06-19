@@ -26,7 +26,7 @@
     padding: 0.3vh 20px 5vh 20px; /* Mehr Padding unten für visuellen Bias nach oben */
     display: flex;
     justify-content: center;
-    align-items: center; /* Zentriert den Inhalt vertikal */
+    align-items: start;
     height: calc(100vh - 4vh); /* Mehr nutzbarer Platz (war 5vh) */
 }
 
