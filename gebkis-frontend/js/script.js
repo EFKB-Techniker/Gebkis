@@ -20,9 +20,9 @@
     // KONFIGURATION
     // ============================================================
     const CONFIG = Object.freeze({
-        // Zukünftiges Bildnamensschema: "DD-MMM-YY - Nachname, Vorname.jpg"
-        // Beispiele:  12-Jan-93 - Mustermann, Max.jpg
-        //             01-Mrz-12 - Vogel, Tim.jpg
+        // Zukünftiges Bildnamensschema: "DD-MMM-YY - Vorname, Nachname.jpg"
+        // Beispiele:  12-Jan-93 - Max, Mustermann.jpg
+        //             01-Mrz-12 - Tim, Vogel.jpg
         // Sobald die Bilder umbenannt sind, hier auf true setzen.
         USE_NEW_IMAGE_NAMING: true,
 
@@ -161,10 +161,12 @@
     function getImageSrc(birthday) {
         const last = convertUmlauts(birthday.nachname);
         const first = convertUmlauts(birthday.vorname);
-        const dateStr = CONFIG.USE_NEW_IMAGE_NAMING
-            ? formatDateForImageNew(birthday.date)
-            : formatDateForImage(birthday.date);
-        return `${CONFIG.IMAGE_DIR}${dateStr} - ${last}, ${first}.jpg`;
+        if (CONFIG.USE_NEW_IMAGE_NAMING) {
+            // Neu: DD-MMM-YY - Vorname, Nachname.jpg
+            return `${CONFIG.IMAGE_DIR}${formatDateForImageNew(birthday.date)} - ${first}, ${last}.jpg`;
+        }
+        // Alt: MM.DD.YY - Nachname, Vorname.jpg
+        return `${CONFIG.IMAGE_DIR}${formatDateForImage(birthday.date)} - ${last}, ${first}.jpg`;
     }
 
     // ============================================================
